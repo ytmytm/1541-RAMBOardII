@@ -471,11 +471,11 @@ LF497:	{					// decode 10 GCR bytes from $24 into header structure at $16-$1A (t
 		pha
 		lda BUFPNT+1
 		pha
-		lda #$24			// pointer $30/31 to $0024
+		lda #<STAB			// pointer $30/31 to $0024
 		sta BUFPNT
-		lda #$00
+		lda #>STAB
 		sta BUFPNT+1
-		sta $34
+		sta $34				// initial offset
 		jsr L98D9			// decode 5 GCR bytes into 4 BIN cells
 		lda $55
 		sta HEADER+2		// $18 track
