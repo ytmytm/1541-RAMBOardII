@@ -425,7 +425,7 @@ LF8E0:	{
 		sta $4E
 		lda #$BA
 		sta $4F
-		lda $31
+		lda BUFPNT+1
 		sta $2F
 		jsr L98D9
 		lda $52
@@ -460,54 +460,54 @@ L9991:	sty $36
 L99B0:	lda $53			// not in 1571 code
 		sta $3A			// not in 1571 code
 		lda $2F
-		sta $31
+		sta BUFPNT+1
 		rts
 }
 
 // 952F / F497 - direct copy of F497 but jumps to 98D9 instead of F7E6
 
 LF497:	{					// decode 10 GCR bytes from $24 into header structure at $16-$1A (track at $18, sector at $19, $16/$17=ID, $1A=checksum)
-		lda $30
+		lda BUFPNT
 		pha
-		lda $31
+		lda BUFPNT+1
 		pha
 		lda #$24			// pointer $30/31 to $0024
-		sta $30
+		sta BUFPNT
 		lda #$00
-		sta $31
+		sta BUFPNT+1
 		sta $34
 		jsr L98D9			// decode 5 GCR bytes into 4 BIN cells
 		lda $55
-		sta $18
+		sta HEADER+2		// $18 track
 		lda $54
-		sta $19
+		sta HEADER+3		// $19 sector
 		lda $53
-		sta $1A
+		sta HEADER+4		// $1A checksum
 		jsr L98D9			// decode next 5 GCR bytes into 4 BIN cells
 		lda $52
-		sta $17
+		sta HEADER+1		// $17 ID2
 		lda $53
-		sta $16
+		sta HEADER			// $16 ID1
 		pla
-		sta $31
+		sta BUFPNT+1
 		pla
-		sta $30
+		sta BUFPNT
 		rts
 }
 
 // 98D9 / F7E6 - Convert 5 GCR bytes from ($30),Y (Y=$34); $30 must be 0, after Y rollover into ($4E->$31 (hi), $4F->Y (lo), $01BB) into 4 binary bytes into $52-$55, $56-$5D used for temp storage
 L98D9:	{
 		ldy $34
-		lda ($30),Y
+		lda (BUFPNT),Y
 		sta $56
 		and #$07
 		sta $57
 		iny
 		bne L98EC
 		lda $4E
-		sta $31
+		sta BUFPNT+1
 		ldy $4F
-L98EC:	lda ($30),Y
+L98EC:	lda (BUFPNT),Y
 		sta $58
 		and #$C0
 		ora $57
@@ -516,7 +516,7 @@ L98EC:	lda ($30),Y
 		and #$01
 		sta $59
 		iny
-		lda ($30),Y
+		lda (BUFPNT),Y
 		tax
 		and #$F0
 		ora $59
@@ -525,7 +525,7 @@ L98EC:	lda ($30),Y
 		and #$0F
 		sta $5A
 		iny
-		lda ($30),Y
+		lda (BUFPNT),Y
 		sta $5B
 		and #$80
 		ora $5A
@@ -536,10 +536,10 @@ L98EC:	lda ($30),Y
 		iny
 		bne L9927
 		lda $4E
-		sta $31
+		sta BUFPNT+1
 		ldy $4F
-		sty $30
-L9927:	lda ($30),Y
+		sty BUFPNT
+L9927:	lda (BUFPNT),Y
 		sta $5D
 		and #$E0
 		ora $5C
