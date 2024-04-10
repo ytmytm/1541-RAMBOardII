@@ -113,7 +113,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 
 #if ROM1541II
 .print "Assembling stock 1541-II ROM 251968-03"
-.segmentdef Combined  [outBin="dos1541ii-251968-03-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,MainPatch", allowOverlap]
+.segmentdef Combined  [outBin="dos1541ii-251968-03-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,Patch11,Patch12,MainPatch", allowOverlap]
 .segment Base [start = $8000, max=$ffff]
 	.var data = LoadBinary("rom/dos1541ii-251968-03.bin")
 	.fill $4000, $ff
@@ -123,7 +123,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 
 #if ROMJIFFY1541II
 .print "Assembling JiffyROM 1541-II"
-.segmentdef Combined  [outBin="dos1541ii-251968-03-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,MainPatch", allowOverlap]
+.segmentdef Combined  [outBin="dos1541ii-251968-03-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,Patch11,Patch12,MainPatch", allowOverlap]
 .segment Base [start = $C000, max=$ffff]
 	.var data = LoadBinary("rom/dos1541ii-251968-03.bin")
 	.fill $4000, $ff
