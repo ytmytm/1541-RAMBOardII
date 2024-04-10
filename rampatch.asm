@@ -177,6 +177,12 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 		.pc = $F7E6 "Patch 5 GCR to 4 BIN decoding"
 		jmp L98D9
 
+.segment Patch12 []
+		.pc = $FF10 "Patch to not set VIA#1 port A to output (safer for parallel cable)"
+		nop	// was STX $1803
+		nop
+		nop
+
 /////////////////////////////////////
 
 .segment MainPatch [min=$A000,max=$BFFF]
