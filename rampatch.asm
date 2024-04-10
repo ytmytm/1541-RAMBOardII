@@ -60,7 +60,6 @@
 	- copy data from stack to target buffer
 	- restore zp/stack
 - separate routine to decode one-shot 5 bytes from sector header (put on stack and retrieve)
-- patch $FF10 to *not* store $FF into $1803 (it's 00 - input on reset)
 
 
 if the first byte of data is not $55, I give up after 3 tries and report error 04 for that sector and move on. also, if parity fails, give up after 3 tries and report error 05. This is because my project is a disk utility and not a loader :) I cannot "hang" trying forever.
@@ -71,6 +70,15 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 // ???
 // decode one full header (1st one) and compare ID with that from $F514 while updating $16/17/18/19 too?
 // could report at least ID mismatch (A=$02 + jump into f969)
+
+// SpeedDOS:
+// - improve to not duplicate code(?) (extract ReadCache into a procedure)
+// - do part of what LF4F0 does - verify checksum (end of ReadCacheFindSector)
+// - C64 Kernal - that F800-F9AB space is free now
+// - C64 Kernal - patch to honor ,1 secondary address (it's tossed out right in SpeedDOS at f791)
+
+// JiffyDOS:
+// ! not tested (XXX)
 
 .const HEADER = $16
 .const HDRPNT = $32
