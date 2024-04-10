@@ -77,6 +77,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 .const LF556 = $F556 // wait for sync, set Y to 0
 //.const LF497 = $F497 // decode 8 GCR bytes from $24 into header structure at $16-$1A (track at $18, sector at $19)
 .const LF4ED = $F4ED // part of read sector procedure right after GCR sector data is read - decode GCR from BUFPNT+$01BA:FF into BUFPNT
+.const LF4F0 = $F4F0 // part of read sector procedure right after GCR sector data is decoded, compare checksum
 .const LF50A = $F50A // wait for header and then for sync (F556), patched instruction at $F4D1
 .const LF4D4 = $F4D4 // next instruction after patch at $F4D1
 
@@ -112,7 +113,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 
 #if ROM1541II
 .print "Assembling stock 1541-II ROM 251968-03"
-.segmentdef Combined  [outBin="dos1541ii-251968-03-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,MainPatch", allowOverlap]
+.segmentdef Combined  [outBin="dos1541ii-251968-03-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,MainPatch", allowOverlap]
 .segment Base [start = $8000, max=$ffff]
 	.var data = LoadBinary("rom/dos1541ii-251968-03.bin")
 	.fill $4000, $ff
@@ -122,7 +123,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 
 #if ROMJIFFY1541II
 .print "Assembling JiffyROM 1541-II"
-.segmentdef Combined  [outBin="dos1541ii-251968-03-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,MainPatch", allowOverlap]
+.segmentdef Combined  [outBin="dos1541ii-251968-03-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,MainPatch", allowOverlap]
 .segment Base [start = $C000, max=$ffff]
 	.var data = LoadBinary("rom/dos1541ii-251968-03.bin")
 	.fill $4000, $ff
@@ -159,6 +160,18 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 .segment Patch7 []
 		.pc = $D005 "Patch 'I' command"
 		jsr InitializeAndResetCache
+
+.segment Patch8 []
+		.pc = $F497 "Patch sector header decoding"
+		jmp LF497
+
+.segment Patch9 []
+		.pc = $F4ED "Patch call to decode sector buffer from GCR after sector read"
+		jsr LF8E0
+
+.segment Patch10 []
+		.pc = $F8E0 "Patch GCR sector decoding to use faster routine from 1571"
+		jmp LF8E0
 
 /////////////////////////////////////
 
@@ -265,8 +278,10 @@ ReadCache:
 		iny
 		inx
 		bne !-
-		
-		jmp LF4ED	// we have data as if it came from the disk, continue in ROM: decode and return 'ok' (or sector checksum read error)
+
+//		jmp LF4ED	// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
+		jsr LF8E0	// decode sector from ($30)/$01BB // XXX speedup with own version to avoid copying sector data
+		jmp LF4F0	// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
 
 /////////////////////////////////////
 
@@ -400,9 +415,58 @@ DecodeLoop:
 /////////////////////////////////////
 // 1571
 
-// 952F - direct copy of F497 but jumps to 98D9 instead of F7E6
+// 9965 / F8E0 - direct copy of F8E0 but jumps to 98D9 instead of F7E6 called from sector read routine, decode GCR data from ($30/31)+$01BA-$FF into ($30/31)
+LF8E0:	{
+		lda #$00
+		sta $34
+		sta $2E
+		sta $36
+		lda #$01
+		sta $4E
+		lda #$BA
+		sta $4F
+		lda $31
+		sta $2F
+		jsr L98D9
+		lda $52
+		sta $38
+		ldy $36
+		lda $53
+		sta ($2E),Y
+		iny
+		lda $54
+		sta ($2E),Y
+		iny
+		lda $55
+		sta ($2E),Y
+		iny
+L9991:	sty $36
+		jsr L98D9
+		ldy $36
+		lda $52
+		sta ($2E),Y
+		iny
+		beq L99B0
+		lda $53
+		sta ($2E),Y
+		iny
+		lda $54
+		sta ($2E),Y
+		iny
+		lda $55
+		sta ($2E),Y
+		iny
+		bne L9991
+L99B0:	lda $53			// not in 1571 code
+		sta $3A			// not in 1571 code
+		lda $2F
+		sta $31
+		rts
+}
 
-LF497:						// decode 10 GCR bytes from $24 into header structure at $16-$1A (track at $18, sector at $19, $16/$17=ID, $1A=checksum)
+// 952F / F497 - direct copy of F497 but jumps to 98D9 instead of F7E6
+
+LF497:	{					// decode 10 GCR bytes from $24 into header structure at $16-$1A (track at $18, sector at $19, $16/$17=ID, $1A=checksum)
 		lda $30
 		pha
 		lda $31
@@ -429,9 +493,10 @@ LF497:						// decode 10 GCR bytes from $24 into header structure at $16-$1A (tr
 		pla
 		sta $30
 		rts
+}
 
-// 98D9 / f7E6 - decode Convert 5 GCR bytes from ($30),Y (Y=$34); $30 must be 0, after Y rollover into ($4E->$31 (hi), $4F->Y (lo), $01BB) into 4 binary bytes into $52-$55, $56-$5D used for temp storage
-L98D9:
+// 98D9 / F7E6 - Convert 5 GCR bytes from ($30),Y (Y=$34); $30 must be 0, after Y rollover into ($4E->$31 (hi), $4F->Y (lo), $01BB) into 4 binary bytes into $52-$55, $56-$5D used for temp storage
+L98D9:	{
 		ldy $34
 		lda ($30),Y
 		sta $56
@@ -502,6 +567,7 @@ L9927:	lda ($30),Y
 		ora LA30D,X
 		sta $55
 		rts
+}
 
 		// align tables to full page to avoid cross-page cycle penalty
 		.align $0100
