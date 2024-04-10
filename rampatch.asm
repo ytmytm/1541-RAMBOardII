@@ -141,24 +141,52 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 
 #if ROMSPEEDDOS35
 .print "Assembling SpeedDOS Plus 2.7 35 tracks ROM"
-.print "Use with parallel cable and rom/C64-SpeedDOS-Plus.rom"
+.print "Use with parallel cable and C64-SpeedDOS-Plus-patched.bin"
 .segmentdef Combined  [outBin="1541-II-SpeedDOS-35-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,Patch11,MainPatch", allowOverlap]
 .segment Base [start = $8000, max=$ffff]
 	.var data = LoadBinary("rom/1541-II-SpeedDOS-35.rom")
 	.fill $4000, $ff
 	.fill data.getSize(), data.get(i)
+
+.segmentdef Combined2 [outBin="C64-SpeedDOS-Plus-patched.bin", segments="KernalBase,SpeedDOSPatch1", allowOverlap]
+.segment KernalBase [start = $e000, max=$ffff]
+	.var data2 = LoadBinary("rom/C64-SpeedDOS-Plus.rom")
+	.fill data2.getSize(), data2.get(i)
+
 #endif
 
 #if ROMSPEEDDOS40
 .print "Assembling SpeedDOS Plus+ 2.7 40 tracks ROM"
-.print "Use with parallel cable and rom/C64-SpeedDOS-Plus+.rom"
+.print "Use with parallel cable and C64-SpeedDOS-Plus+-patched.bin"
 .segmentdef Combined  [outBin="1541-II-SpeedDOS-40-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,Patch11,MainPatch", allowOverlap]
 .segment Base [start = $8000, max=$ffff]
 	.var data = LoadBinary("rom/1541-II-SpeedDOS-40.rom")
 	.fill $4000, $ff
 	.fill data.getSize(), data.get(i)
+
+.segmentdef Combined2 [outBin="C64-SpeedDOS-Plus+-patched.bin", segments="KernalBase,SpeedDOSPatch1", allowOverlap]
+.segment KernalBase [start = $e000, max=$ffff]
+	.var data2 = LoadBinary("rom/C64-SpeedDOS-Plus+.rom")
+	.fill data2.getSize(), data2.get(i)
+
 #endif
 
+
+/////////////////////////////////////
+
+#if ROMSPEEDDOS35 || ROMSPEEDDOS40
+
+.segment SpeedDOSPatch1 [min=$F74A, max=$F791]
+		.pc = $F74A "Patch LOAD to just run M-E $A000"
+		lda #$45		// M-'E'
+		jsr $f7e5
+		lda #<SpeedDOSRun
+		jsr $eddd
+		lda #>SpeedDOSRun
+		jsr $eddd
+		jmp $f791		// unlisten+wait for data XXX could patch it also to use loadaddress
+
+#endif
 
 /////////////////////////////////////
 
@@ -222,6 +250,11 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 		//rts
 
 		.pc = $A000
+
+#if ROMSPEEDDOS35 || ROMSPEEDDOS40
+SpeedDOSRun:
+		jmp SpeedDOSLoader		// SpeedDOS loader at a fixed address for C64 Kernal side
+#endif
 
 /////////////////////////////////////
 
@@ -718,6 +751,184 @@ CopyRestVector:
 		sta bufpage
 		rts
 }
+
+/////////////////////////////////////
+
+#if ROMSPEEDDOS35 || ROMSPEEDDOS40
+		// this will be called via M-E from C64 Kernal
+		// file was opened t&s is in $18/19
+		// all RAM can be used (SpeedDOS puts its own code in $0300-$0500 while $0600-$0700 and $0140-FF are for data buffers)
+SpeedDOSLoader:
+		ldx #$FF					// <--- START, $18/19 has file starting t&s
+		stx $1803					// PA out
+		inx
+		stx $0F
+		lda #$0B
+		sta $180C					// handshake
+L0313:	lda $18
+		sta $06
+		lda $19
+		sta $07
+		lda #$80					// read first sector - track is now fully cached
+		sta $00
+!:		lda $00
+		bmi !-
+		cmp #$01
+		bne SpeedDOSEOF				// error = end of transmission
+
+SpeedDOSNextSector:
+		// $19 contains sector number, find it in cache and update vector $30 (probably $0300 all the time)
+		jsr ReadCacheFindSector
+
+		// send sectors (updating $18/$19) from current track cache until end of file or track change
+		ldy #0
+		lda (BUFPNT),Y
+		bne L043B					// non-zero track, this is not the last sector
+		iny
+		lda (BUFPNT),Y				// number of bytes in the last sector
+		jsr SpeedDOSSendBlock		// send it out
+		jmp SpeedDOSEOF
+
+L043B:	tax							// preserve next track number in X
+		iny
+		lda (BUFPNT),Y
+		sta $19						// next sector
+		lda #$FF
+		jsr SpeedDOSSendBlock		// send out $FE bytes from current buffer
+		cpx $18						// next track the same?
+		beq SpeedDOSNextSector		// yes: send next sector
+		stx $18						// no: new track
+		bne L0313
+
+SpeedDOSEOF:
+L0333:	lda #$00					// 00 = end of file (0 bytes to follow)
+		jsr SpeedDOSSendByte		// send byte
+		lda $00
+		pha
+		jsr SpeedDOSSendByte		// send status byte, 01=no error
+		inc $1803					// PA input
+		lda $18						// track & sector (header)
+		pha
+		lda $19
+		pha
+		jsr $D005					// disk init (why? to return head to directory? to bring back BAM 18,0 into buffer $0700?)
+		pla
+		sta $80						// current track & sector (why put it back, we're not on original track anymore)
+		pla
+		sta $81
+		pla
+		cmp #$01					// error?
+		bne L035B					// yes
+		jmp $D313					// no: Close all channels of other drives
+L035B:	clc							// error number
+		adc #$1E
+		jmp $E645					// Print error message into error buffer
+
+SpeedDOSSendByte:					// send byte with watchdog reset
+L0405:  bit $1800					// send byte ; clear handshake
+		sta $1801					// send byte
+		ldy #$E0					// timeout
+L040D:	lda $180D					// wait for handshake
+		and #$10
+		bne L041A
+		iny
+		bne L040D
+		jmp $EAA0					// timeout->RESET
+L041A:	rts							// ok
+
+SpeedDOSSendBlock:
+L0482:	sta $0C						// send out number of bytes that follow
+		jsr L0405
+		ldy #$01					// send out sector data
+L0489:	iny
+		lda (BUFPNT),Y
+		bit $1800					// clear flag
+		sta $1801
+		lda #$10					// wait for handshake
+L0494:	bit $180D
+		beq L0494
+		cpy $0C						// number of bytes to send
+		bne L0489
+		rts
+
+		// all of that again because at the end we need RTS, not JMP
+ReadCacheFindSector:
+		lda $19
+		sta hdroffs
+		// setup pointers
+		lda #>RAMEXP			// pages - first 256 bytes
+		sta bufpage+1
+		lda #>RAMEXP_REST		// remainders - following bytes until end of sector ($46 bytes)
+		sta bufrest+1
+		lda #0
+		sta bufpage
+		sta bufrest
+		// find sector
+		ldx #0
+!loop:	lda RE_cached_headers,x
+		cmp hdroffs
+		beq !found+
+		// no, next one
+		inc bufpage+1
+		lda bufrest
+		clc
+		adc #bufrestsize
+		sta bufrest
+		bcc !+
+		inc bufrest+1
+!:		inx
+		cpx RE_max_sector
+		bne !loop-
+		rts						// not found - no possible? XXX
+
+!found:
+		// decode GCR sector data
+		{
+		lda #$00		// customized LF8E0 / 9965
+		sta $34
+		sta $2E
+		sta $36
+		lda BUFPNT+1	// write to here
+		sta $2F
+		jsr Decode5GCR	// customized 98D9 / F7E6
+		lda $52
+		sta $38
+		ldy $36
+		lda $53
+		sta ($2E),Y
+		iny
+		lda $54
+		sta ($2E),Y
+		iny
+		lda $55
+		sta ($2E),Y
+		iny
+L9991:	sty $36
+		jsr Decode5GCR
+		ldy $36
+		lda $52
+		sta ($2E),Y
+		iny
+		beq L99B0
+		lda $53
+		sta ($2E),Y
+		iny
+		lda $54
+		sta ($2E),Y
+		iny
+		lda $55
+		sta ($2E),Y
+		iny
+		bne L9991
+L99B0:	lda $53			// not in 1571 code
+		sta $3A			// not in 1571 code
+		}
+		// XXX there is no checksum check here
+		rts
+
+#endif
+
+/////////////////////////////////////
 
 		// align tables to full page to avoid cross-page cycle penalty
 		.align $0100
