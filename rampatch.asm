@@ -14,10 +14,16 @@
 // uncomment one of the definitions below or pass them to KickAss as a command line option, e.g. -define ROM1571
 
 // 1541-II
-#define ROM1541II
+//#define ROM1541II
 
 // JiffyDOS for 1541-II
 //#define ROMJIFFY1541II
+
+// SpeedDOS Plus 2.7 (35 tracks)
+//#define ROMSPEEDDOS35
+
+// SpeedDOS Plus+ 2.7 (40 tracks)
+#define ROMSPEEDDOS40
 
 // INFO
 // - read whole track at once and cache
@@ -107,7 +113,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 
 /////////////////////////////////////
 
-#if !ROM1541II && !ROMJIFFY1541II
+#if !ROM1541II && !ROMJIFFY1541II && !ROMSPEEDDOS35 && !ROMSPEEDDOS40
 .error "You have to choose ROM to patch"
 #endif
 
@@ -118,7 +124,6 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 	.var data = LoadBinary("rom/dos1541ii-251968-03.bin")
 	.fill $4000, $ff
 	.fill data.getSize(), data.get(i)
-	#define GCR1571
 #endif
 
 #if ROMJIFFY1541II
@@ -129,6 +134,27 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 	.fill $4000, $ff
 	.fill data.getSize(), data.get(i)
 #endif
+
+#if ROMSPEEDDOS35
+.print "Assembling SpeedDOS Plus 2.7 35 tracks ROM"
+.print "Use with parallel cable and rom/C64-SpeedDOS-Plus.rom"
+.segmentdef Combined  [outBin="1541-II-SpeedDOS-35-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,Patch11,MainPatch", allowOverlap]
+.segment Base [start = $8000, max=$ffff]
+	.var data = LoadBinary("rom/1541-II-SpeedDOS-35.rom")
+	.fill $4000, $ff
+	.fill data.getSize(), data.get(i)
+#endif
+
+#if ROMSPEEDDOS40
+.print "Assembling SpeedDOS Plus+ 2.7 40 tracks ROM"
+.print "Use with parallel cable and rom/C64-SpeedDOS-Plus+.rom"
+.segmentdef Combined  [outBin="1541-II-SpeedDOS-40-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,Patch11,MainPatch", allowOverlap]
+.segment Base [start = $8000, max=$ffff]
+	.var data = LoadBinary("rom/1541-II-SpeedDOS-40.rom")
+	.fill $4000, $ff
+	.fill data.getSize(), data.get(i)
+#endif
+
 
 /////////////////////////////////////
 
