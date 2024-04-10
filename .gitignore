@@ -1,0 +1,10 @@
+*.log
+*.sym
+*.vs
+# don't want to see patched files here, only on release
+*-patched.bin
+# KiCad backup and zip of files sent to fab
+kicad/1541-RAMBoard2-FirstBank/1541-RAMBoard2-FirstBank-backups/
+kicad/1541-RAMBoard2-FirstBank/*.zip
+# KickAss
+tools/*
