@@ -265,23 +265,75 @@ ReadCache:
 		jsr LF50A				// replaced instruction
 		jmp LF4D4				// next instruction
 
-!found:	// copy GCR data and fall back into ROM		
-		ldy #0
-!:		lda (bufpage),y
-		sta (BUFPNT),y
-		iny
-		bne !-
-		ldx #$ba
-		ldy #0
-!:		lda (bufrest),y
-		sta $0100,x
-		iny
-		inx
-		bne !-
+!found:
+	// copy GCR data and fall back into ROM		
+//		ldy #0
+//!:		lda (bufpage),y
+//		sta (BUFPNT),y
+//		iny
+//		bne !-
+//		ldx #$ba
+//		ldy #0
+//!:		lda (bufrest),y
+//		sta $0100,x
+//		iny
+//		inx
+//		bne !-
 
-//		jmp LF4ED	// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
 		jsr LF8E0	// decode sector from ($30)/$01BB // XXX speedup with own version to avoid copying sector data
-		jmp LF4F0	// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
+		jmp LF4F0		// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
+
+		// decode GCR sector data
+		{
+		lda #$00	// customized LF8E0 / 9965
+		sta $34
+		sta $2E
+		sta $36
+		lda bufrest		// upper half in (bufrest), lower half in (bufpage), result in (BUFPNT)
+		sta $4E
+		lda bufrest+1
+		sta $4F
+		lda BUFPNT+1	// write to here
+		sta $2F
+		lda bufpage+1	// read from here
+		sta BUFPNT+1
+		jsr L98D9
+		lda $52
+		sta $38
+		ldy $36
+		lda $53
+		sta ($2E),Y
+		iny
+		lda $54
+		sta ($2E),Y
+		iny
+		lda $55
+		sta ($2E),Y
+		iny
+L9991:	sty $36
+		jsr L98D9
+		ldy $36
+		lda $52
+		sta ($2E),Y
+		iny
+		beq L99B0
+		lda $53
+		sta ($2E),Y
+		iny
+		lda $54
+		sta ($2E),Y
+		iny
+		lda $55
+		sta ($2E),Y
+		iny
+		bne L9991
+L99B0:	lda $53			// not in 1571 code
+		sta $3A			// not in 1571 code
+		lda $2F
+		sta BUFPNT+1	// restore BUFPNT
+		}
+
+		jmp LF4F0		// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
 
 /////////////////////////////////////
 
@@ -384,6 +436,7 @@ DecodeHeaders:
 		sta BUFPNT+1
 
 DecodeLoop:
+		// fast partial header decode, without copying (formerly LF497)
 		lda hdroffs
 		sta $34				// offset
 		jsr L98D9			// decode 5 GCR bytes into 4 BIN cells
