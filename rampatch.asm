@@ -272,14 +272,8 @@ ReadCache:
 		sta $34
 		sta $2E
 		sta $36
-		lda bufrest+1	// upper half in (bufrest), lower half in (bufpage), result in (BUFPNT)
-		sta $4E
-		lda bufrest		// (yes, $4E is upper byte, $4F is lower byte here)
-		sta $4F
 		lda BUFPNT+1	// write to here
 		sta $2F
-		lda bufpage+1	// read from here
-		sta BUFPNT+1
 		jsr Decode5GCR	// customized 98D9 / F7E6
 		lda $52
 		sta $38
@@ -312,10 +306,6 @@ L9991:	sty $36
 		bne L9991
 L99B0:	lda $53			// not in 1571 code
 		sta $3A			// not in 1571 code
-		lda $2E
-		sta BUFPNT		// restore BUFPNT
-		lda $2F
-		sta BUFPNT+1	// restore BUFPNT
 		}
 
 		jmp LF4F0		// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
@@ -608,17 +598,14 @@ L9927:	lda (BUFPNT),Y
 // almost the same as 98D9 but allow for any offset, BUFPNT AND BUFPNT+1 can be overwriten
 Decode5GCR:	{
 		ldy $34
-		lda (BUFPNT),Y
+		lda (bufpage),Y
 		sta $56
 		and #$07
 		sta $57
 		iny
 		bne !+
-		lda $4E
-		sta BUFPNT+1
-		lda $4F
-		sta BUFPNT
-!:		lda (BUFPNT),Y
+		jsr CopyRestVector
+!:		lda (bufpage),Y
 		sta $58
 		and #$C0
 		ora $57
@@ -628,11 +615,8 @@ Decode5GCR:	{
 		sta $59
 		iny
 		bne !+
-		lda $4E
-		sta BUFPNT+1
-		lda $4F
-		sta BUFPNT
-!:		lda (BUFPNT),Y
+		jsr CopyRestVector
+!:		lda (bufpage),Y
 		tax
 		and #$F0
 		ora $59
@@ -642,11 +626,8 @@ Decode5GCR:	{
 		sta $5A
 		iny
 		bne !+
-		lda $4E
-		sta BUFPNT+1
-		lda $4F
-		sta BUFPNT
-!:		lda (BUFPNT),Y
+		jsr CopyRestVector
+!:		lda (bufpage),Y
 		sta $5B
 		and #$80
 		ora $5A
@@ -656,21 +637,15 @@ Decode5GCR:	{
 		sta $5C
 		iny
 		bne !+
-		lda $4E
-		sta BUFPNT+1
-		lda $4F
-		sta BUFPNT
-!:		lda (BUFPNT),Y
+		jsr CopyRestVector
+!:		lda (bufpage),Y
 		sta $5D
 		and #$E0
 		ora $5C
 		sta $5C
 		iny
 		bne !+
-		lda $4E
-		sta BUFPNT+1
-		lda $4F
-		sta BUFPNT
+		jsr CopyRestVector
 !:		sty $34
 		ldx $56
 		lda LA00D,X
@@ -692,6 +667,13 @@ Decode5GCR:	{
 		ldx $5D
 		ora LA30D,X
 		sta $55
+		rts
+
+CopyRestVector:
+		lda bufrest+1
+		sta bufpage+1
+		lda bufrest
+		sta bufpage
 		rts
 }
 
