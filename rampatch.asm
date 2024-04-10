@@ -765,6 +765,8 @@ SpeedDOSLoader:
 		stx $0F
 		lda #$0B
 		sta $180C					// handshake
+		bne SpeedDOSNextSector		// skip over first data load - that track is already cached
+
 L0313:	lda $18
 		sta $06
 		lda $19
