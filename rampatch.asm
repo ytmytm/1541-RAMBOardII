@@ -68,6 +68,10 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 4) save/restore a portion of ZP before/after reading all the sectors I wanted, so I can return to KERNAL when done. Returning to KERNAL is important for my utility project. I am using $86-$E5 for the ZP code and only save/restore $99-$B4 -- the rest is just zero'd out.
 */
 
+// ???
+// decode one full header (1st one) and compare ID with that from $F514 while updating $16/17/18/19 too?
+// could report at least ID mismatch (A=$02 + jump into f969)
+
 .const HEADER = $16
 .const HDRPNT = $32
 .const STAB = $24
