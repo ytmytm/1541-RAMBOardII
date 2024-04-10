@@ -587,7 +587,7 @@ L98EC:	lda (BUFPNT),Y
 		lda $4E
 		sta BUFPNT+1
 		ldy $4F
-		sty BUFPNT
+		//sty BUFPNT			// XXX why it was here?
 L9927:	lda (BUFPNT),Y
 		sta $5D
 		and #$E0
