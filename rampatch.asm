@@ -266,35 +266,33 @@ ReadCache:
 		jmp LF4D4				// next instruction
 
 !found:
-	// copy GCR data and fall back into ROM		
-//		ldy #0
-//!:		lda (bufpage),y
-//		sta (BUFPNT),y
-//		iny
-//		bne !-
-//		ldx #$ba
-//		ldy #0
-//!:		lda (bufrest),y
-//		sta $0100,x
-//		iny
-//		inx
-//		bne !-
-
-		jsr LF8E0	// decode sector from ($30)/$01BB // XXX speedup with own version to avoid copying sector data
-		jmp LF4F0		// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
+		// decode GCR data
+		// XXX this is copied so that Y rolls over from $BA and end of data is detected?
+		// XXX or it fails within L98D9?
+		ldx #$ba
+		ldy #0
+!:		lda (bufrest),y
+		sta $0100,x
+		iny
+		inx
+		bne !-
 
 		// decode GCR sector data
 		{
-		lda #$00	// customized LF8E0 / 9965
+		lda #$00		// customized LF8E0 / 9965
 		sta $34
 		sta $2E
 		sta $36
-		lda bufrest		// upper half in (bufrest), lower half in (bufpage), result in (BUFPNT)
+		lda bufrest+1	// upper half in (bufrest), lower half in (bufpage), result in (BUFPNT)
 		sta $4E
-		lda bufrest+1
+		lda bufrest		// (yes, $4E is upper byte, $4F is lower byte here)
 		sta $4F
 		lda BUFPNT+1	// write to here
 		sta $2F
+		lda #$01	// XXX
+		sta $4E
+		lda #$BA	// XXX
+		sta $4F
 		lda bufpage+1	// read from here
 		sta BUFPNT+1
 		jsr L98D9
