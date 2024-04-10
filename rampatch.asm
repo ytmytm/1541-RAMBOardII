@@ -373,31 +373,24 @@ DecodeHeaders:
 		stx bufrest			// reuse for counter
 		stx hdroffs
 
+		lda BUFPNT
+		pha
+		lda BUFPNT+1
+		pha
+
+		lda #<RE_cached_headers
+		sta BUFPNT
+		lda #>RE_cached_headers
+		sta BUFPNT+1
+
 DecodeLoop:
-		ldy hdroffs
-		ldx #0
-!:		lda RE_cached_headers,y
-		sta STAB,x
-		iny
-		inx
-		cpx #hdrsize
-		bne !-
-		jsr LF497			// decode 8 GCR bytes from $24 into header structure at $16-$1A (track at $18, sector at $19) // XXX reduce overhead by putting this info here directly
-.if (0==1) {
-		// debug
-		ldy hdroffs
-		ldx #0
-!:		lda $16,x
-		sta RE_decoded_headers,y
-		iny
-		inx
-		cpx #5
-		bne !-
-		//
-}
+		lda hdroffs
+		sta $34				// offset
+		jsr L98D9			// decode 5 GCR bytes into 4 BIN cells
+
 		// XXX check header checksum here to mark mangled sector headers?
 		ldx bufrest
-		lda $19
+		lda $54				// sector
 		sta RE_cached_headers,x	// store decoded sector number
 		lda hdroffs			// next header data offset
 		clc
@@ -407,7 +400,12 @@ DecodeLoop:
 		stx bufrest			// next header counter
 		cpx counter
 		bne DecodeLoop
+
 		stx RE_max_sector
+		pla
+		sta BUFPNT+1
+		pla
+		sta BUFPNT
 
 		// all was said and done, now read the sector from cache
 		jmp ReadSector
