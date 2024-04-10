@@ -269,6 +269,7 @@ ReadCache:
 		// decode GCR data
 		// XXX this is copied so that Y rolls over from $BA and end of data is detected?
 		// XXX or it fails within L98D9?
+		// XXX maybe because of bufrestsize it crosses boundary in wrong quintuplet?
 		ldx #$ba
 		ldy #0
 !:		lda (bufrest),y
