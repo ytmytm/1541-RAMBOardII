@@ -270,9 +270,11 @@ ReadSector:
 		jmp ReadTrack			// no - read the track
 
 ReadCache:
+		sta $18					// track that we want to read, LF510 (read sector header puts it here for encoding, but some fastloaders might need it (SpeedDOS))
 		iny						// yes, track is cached, just put GCR data back and jump into ROM
 		lda (HDRPNT),y			// needed sector number
 		sta hdroffs				// keep it here
+		sta $19					// sector number that we want to read, LF510 (read sector header puts it here for encoding, but some fastloaders might need it (SpeedDOS))
 		// setup pointers
 		lda #>RAMEXP			// pages - first 256 bytes
 		sta bufpage+1
