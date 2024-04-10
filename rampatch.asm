@@ -266,18 +266,6 @@ ReadCache:
 		jmp LF4D4				// next instruction
 
 !found:
-		// decode GCR data
-		// XXX this is copied so that Y rolls over from $BA and end of data is detected?
-		// XXX or it fails within L98D9?
-		// XXX maybe because of bufrestsize it crosses boundary in wrong quintuplet?
-		ldx #$ba
-		ldy #0
-!:		lda (bufrest),y
-		sta $0100,x
-		iny
-		inx
-		bne !-
-
 		// decode GCR sector data
 		{
 		lda #$00		// customized LF8E0 / 9965
@@ -290,13 +278,9 @@ ReadCache:
 		sta $4F
 		lda BUFPNT+1	// write to here
 		sta $2F
-		lda #$01	// XXX
-		sta $4E
-		lda #$BA	// XXX
-		sta $4F
 		lda bufpage+1	// read from here
 		sta BUFPNT+1
-		jsr L98D9
+		jsr Decode5GCR	// customized 98D9 / F7E6
 		lda $52
 		sta $38
 		ldy $36
@@ -310,7 +294,7 @@ ReadCache:
 		sta ($2E),Y
 		iny
 L9991:	sty $36
-		jsr L98D9
+		jsr Decode5GCR
 		ldy $36
 		lda $52
 		sta ($2E),Y
@@ -328,6 +312,8 @@ L9991:	sty $36
 		bne L9991
 L99B0:	lda $53			// not in 1571 code
 		sta $3A			// not in 1571 code
+		lda $2E
+		sta BUFPNT		// restore BUFPNT
 		lda $2F
 		sta BUFPNT+1	// restore BUFPNT
 		}
@@ -588,7 +574,6 @@ L98EC:	lda (BUFPNT),Y
 		lda $4E
 		sta BUFPNT+1
 		ldy $4F
-		//sty BUFPNT			// XXX why it was here?
 L9927:	lda (BUFPNT),Y
 		sta $5D
 		and #$E0
@@ -596,6 +581,97 @@ L9927:	lda (BUFPNT),Y
 		sta $5C
 		iny
 		sty $34
+		ldx $56
+		lda LA00D,X
+		ldx $57
+		ora L9F0D,X
+		sta $52
+		ldx $58
+		lda LA10D,X
+		ldx $59
+		ora L9F0F,X
+		sta $53
+		ldx $5A
+		lda L9F1D,X
+		ldx $5B
+		ora LA20D,X
+		sta $54
+		ldx $5C
+		lda L9F2A,X
+		ldx $5D
+		ora LA30D,X
+		sta $55
+		rts
+}
+
+// 98D9 / F7E6 - Convert 5 GCR bytes from ($30),Y (Y=$34); $30 must be 0, after Y rollover into ($4E->$31 (hi), $4F->Y (lo), $01BB) into 4 binary bytes into $52-$55, $56-$5D used for temp storage
+// almost the same as 98D9 but allow for any offset, BUFPNT AND BUFPNT+1 can be overwriten
+Decode5GCR:	{
+		ldy $34
+		lda (BUFPNT),Y
+		sta $56
+		and #$07
+		sta $57
+		iny
+		bne !+
+		lda $4E
+		sta BUFPNT+1
+		lda $4F
+		sta BUFPNT
+!:		lda (BUFPNT),Y
+		sta $58
+		and #$C0
+		ora $57
+		sta $57
+		lda $58
+		and #$01
+		sta $59
+		iny
+		bne !+
+		lda $4E
+		sta BUFPNT+1
+		lda $4F
+		sta BUFPNT
+!:		lda (BUFPNT),Y
+		tax
+		and #$F0
+		ora $59
+		sta $59
+		txa
+		and #$0F
+		sta $5A
+		iny
+		bne !+
+		lda $4E
+		sta BUFPNT+1
+		lda $4F
+		sta BUFPNT
+!:		lda (BUFPNT),Y
+		sta $5B
+		and #$80
+		ora $5A
+		sta $5A
+		lda $5B
+		and #$03
+		sta $5C
+		iny
+		bne !+
+		lda $4E
+		sta BUFPNT+1
+		lda $4F
+		sta BUFPNT
+!:		lda (BUFPNT),Y
+		sta $5D
+		and #$E0
+		ora $5C
+		sta $5C
+		iny
+		bne !+
+		lda $4E
+		sta BUFPNT+1
+		lda $4F
+		sta BUFPNT
+!:		sty $34
 		ldx $56
 		lda LA00D,X
 		ldx $57
