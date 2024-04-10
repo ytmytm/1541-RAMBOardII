@@ -173,6 +173,10 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 		.pc = $F8E0 "Patch GCR sector decoding to use faster routine from 1571"
 		jmp LF8E0
 
+.segment Patch11 []
+		.pc = $F7E6 "Patch 5 GCR to 4 BIN decoding"
+		jmp L98D9
+
 /////////////////////////////////////
 
 .segment MainPatch [min=$A000,max=$BFFF]
