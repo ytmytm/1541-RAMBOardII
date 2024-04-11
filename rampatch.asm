@@ -319,8 +319,8 @@ ReadCache:
 #if ROMJIFFY1541II
 		jsr LF5E9				// JiffyDOS computes checksum while decoding GCR
 		sta $4B
-		jmp LF4F0				// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
 #endif
+		jmp LF4F0				// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
 		// not found? fall back on ROM and try to read it again
 !:		jsr LF50A				// replaced instruction
 		jmp LF4D4				// next instruction
