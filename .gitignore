@@ -8,3 +8,8 @@ kicad/1541-RAMBoard2-FirstBank/1541-RAMBoard2-FirstBank-backups/
 kicad/1541-RAMBoard2-FirstBank/*.zip
 # KickAss
 tools/*
+# proprietary
+JiffyDOS_1541-II-patched.bin
+rom/JiffyDOS_1541-II.bin
+rom/JiffyDOS_Kernal.bin
+
