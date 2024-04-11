@@ -1,0 +1,255 @@
+
+Speed DOS 35 loader - $F800-$F9AB
+executed from f7e5
+sent from f733
+sent from f733 (slowly: 512 bytes via M-W)
+executed from f784 (m-'e',3,3)
+
+
+.8:0300  4C 8A FB    JMP $FB8A			// ???
+.8:0303  A9 FF       LDA #$FF			// <--- START
+.8:0305  8D 03 18    STA $1803
+.8:0308  A9 0B       LDA #$0B
+.8:030a  8D 0C 18    STA $180C
+.8:030d  A9 00       LDA #$00
+.8:030f  85 0F       STA $0F
+.8:0311  A5 18       LDA $18
+.8:0313  85 06       STA $06
+.8:0315  A9 E0       LDA #$E0
+.8:0317  85 00       STA $00
+.8:0319  A5 00       LDA $00
+.8:031b  30 FC       BMI $0319
+.8:031d  C9 01       CMP #$01
+.8:031f  F0 10       BEQ $0331
+.8:0321  C9 10       CMP #$10
+.8:0323  F0 E8       BEQ $030D
+.8:0325  A6 0F       LDX $0F
+.8:0327  E6 0F       INC $0F
+.8:0329  BD 99 FB    LDA $FB99,X
+.8:032c  8D FE 02    STA $02FE
+.8:032f  D0 E0       BNE $0311
+.8:0331  A9 00       LDA #$00
+.8:0333  20 0E 04    JSR $040E
+.8:0336  A5 00       LDA $00
+.8:0338  20 0E 04    JSR $040E
+.8:033b  EE 03 18    INC $1803
+.8:033e  A6 18       LDX $18
+.8:0340  86 80       STX $80
+.8:0342  A6 19       LDX $19
+.8:0344  86 81       STX $81
+.8:0346  A9 12       LDA #$12
+.8:0348  85 0E       STA $0E
+.8:034a  A9 00       LDA #$00
+.8:034c  85 0F       STA $0F
+.8:034e  A9 80       LDA #$80
+.8:0350  85 04       STA $04
+.8:0352  A5 04       LDA $04
+.8:0354  30 FC       BMI $0352
+.8:0356  C9 01       CMP #$01
+.8:0358  F0 02       BEQ $035C
+.8:035a  E6 1C       INC $1C
+.8:035c  20 8D FB    JSR $FB8D			// ???
+.8:035f  A5 00       LDA $00
+.8:0361  C9 01       CMP #$01
+.8:0363  F0 7B       BEQ $03E0
+.8:0365  18          CLC
+.8:0366  69 1E       ADC #$1E
+.8:0368  4C 45 E6    JMP $E645		// Print error message into error buffer
+.8:036b  20 65 04    JSR $0465
+.8:036e  A4 0D       LDY $0D
+.8:0370  84 0E       STY $0E
+.8:0372  A2 07       LDX #$07
+.8:0374  A9 06       LDA #$06
+.8:0376  A8          TAY
+.8:0377  20 A3 03    JSR $03A3
+.8:037a  A9 07       LDA #$07
+.8:037c  20 24 04    JSR $0424
+.8:037f  20 65 04    JSR $0465
+.8:0382  A2 05       LDX #$05
+.8:0384  8A          TXA
+.8:0385  A0 07       LDY #$07
+.8:0387  20 A3 03    JSR $03A3
+.8:038a  A9 05       LDA #$05
+.8:038c  20 24 04    JSR $0424
+.8:038f  C5 0E       CMP $0E
+.8:0391  D0 05       BNE $0398
+.8:0393  A9 06       LDA #$06
+.8:0395  20 24 04    JSR $0424
+.8:0398  C5 0D       CMP $0D
+.8:039a  D0 CF       BNE $036B
+.8:039c  A9 07       LDA #$07
+.8:039e  20 24 04    JSR $0424
+.8:03a1  D0 C8       BNE $036B
+.8:03a3  48          PHA
+.8:03a4  98          TYA
+.8:03a5  48          PHA
+.8:03a6  8A          TXA
+.8:03a7  20 E1 03    JSR $03E1
+.8:03aa  68          PLA
+.8:03ab  85 31       STA $31
+.8:03ad  AD 8D 01    LDA $018D
+.8:03b0  85 25       STA $25
+.8:03b2  AD 8E 01    LDA $018E
+.8:03b5  85 26       STA $26
+.8:03b7  AD 8F 01    LDA $018F
+.8:03ba  85 27       STA $27
+.8:03bc  20 36 F5    JSR $F536
+.8:03bf  20 E6 03    JSR $03E6
+.8:03c2  68          PLA
+.8:03c3  85 31       STA $31
+.8:03c5  20 E0 F8    JSR $F8E0
+.8:03c8  20 DA 03    JSR $03DA
+.8:03cb  A0 46       LDY #$46
+.8:03cd  84 4F       STY $4F
+.8:03cf  E6 34       INC $34
+.8:03d1  E6 36       INC $36
+.8:03d3  A9 07       LDA #$07
+.8:03d5  85 31       STA $31
+.8:03d7  20 F2 F8    JSR $F8F2
+.8:03da  A5 3A       LDA $3A
+.8:03dc  A6 31       LDX $31
+.8:03de  95 03       STA $03,X
+.8:03e0  60          RTS
+.8:03e1  85 31       STA $31
+.8:03e3  20 27 F5    JSR $F527
+.8:03e6  20 56 F5    JSR $F556
+.8:03e9  50 FE       BVC $03E9
+.8:03eb  B8          CLV
+.8:03ec  AD 01 1C    LDA $1C01
+.8:03ef  91 30       STA ($30),Y
+.8:03f1  C8          INY
+.8:03f2  D0 F5       BNE $03E9
+.8:03f4  A9 BA       LDA #$BA
+.8:03f6  AA          TAX
+.8:03f7  A8          TAY
+.8:03f8  A5 31       LDA $31
+.8:03fa  C9 07       CMP #$07
+.8:03fc  D0 02       BNE $0400
+.8:03fe  A0 46       LDY #$46
+.8:0400  50 FE       BVC $0400
+.8:0402  B8          CLV
+.8:0403  AD 01 1C    LDA $1C01
+.8:0406  99 00 01    STA $0100,Y
+.8:0409  C8          INY
+.8:040a  E8          INX
+.8:040b  D0 F3       BNE $0400
+.8:040d  60          RTS
+.8:040e  2C 00 18    BIT $1800
+.8:0411  8D 01 18    STA $1801
+.8:0414  A0 E0       LDY #$E0
+.8:0416  AD 0D 18    LDA $180D
+.8:0419  29 10       AND #$10
+.8:041b  D0 06       BNE $0423
+.8:041d  C8          INY
+.8:041e  D0 F6       BNE $0416
+.8:0420  4C A0 EA    JMP $EAA0
+.8:0423  60          RTS
+.8:0424  85 31       STA $31
+.8:0426  AA          TAX
+.8:0427  B5 03       LDA $03,X
+.8:0429  A0 00       LDY #$00
+.8:042b  51 30       EOR ($30),Y
+.8:042d  C8          INY
+.8:042e  D0 FB       BNE $042B
+.8:0430  AA          TAX
+.8:0431  F0 05       BEQ $0438
+.8:0433  A9 05       LDA #$05
+.8:0435  4C 69 F9    JMP $F969
+.8:0438  A8          TAY
+.8:0439  B1 30       LDA ($30),Y
+.8:043b  D0 0B       BNE $0448
+.8:043d  C8          INY
+.8:043e  B1 30       LDA ($30),Y
+.8:0440  20 8F 04    JSR $048F
+.8:0443  A9 01       LDA #$01
+.8:0445  4C 69 F9    JMP $F969
+.8:0448  AA          TAX
+.8:0449  C8          INY
+.8:044a  B1 30       LDA ($30),Y
+.8:044c  85 19       STA $19
+.8:044e  A9 FF       LDA #$FF
+.8:0450  20 8F 04    JSR $048F
+.8:0453  E4 18       CPX $18
+.8:0455  F0 07       BEQ $045E
+.8:0457  86 18       STX $18
+.8:0459  A9 10       LDA #$10
+.8:045b  4C 69 F9    JMP $F969
+.8:045e  A9 00       LDA #$00
+.8:0460  85 0F       STA $0F
+.8:0462  A5 19       LDA $19
+.8:0464  60          RTS
+.8:0465  A4 19       LDY $19
+.8:0467  C8          INY
+.8:0468  C4 43       CPY $43
+.8:046a  D0 02       BNE $046E
+.8:046c  A0 00       LDY #$00
+.8:046e  84 54       STY $54
+.8:0470  84 0D       STY $0D
+.8:0472  A9 01       LDA #$01
+.8:0474  85 31       STA $31
+.8:0476  A9 00       LDA #$00
+.8:0478  45 16       EOR $16
+.8:047a  45 17       EOR $17
+.8:047c  45 18       EOR $18
+.8:047e  45 0D       EOR $0D
+.8:0480  85 53       STA $53
+.8:0482  A9 8C       LDA #$8C
+.8:0484  85 34       STA $34
+.8:0486  A5 39       LDA $39
+.8:0488  85 52       STA $52
+.8:048a  A5 18       LDA $18
+.8:048c  4C 5F F9    JMP $F95F
+.8:048f  85 0C       STA $0C
+.8:0491  20 0E 04    JSR $040E
+.8:0494  A0 01       LDY #$01
+.8:0496  C8          INY
+.8:0497  B1 30       LDA ($30),Y
+.8:0499  2C 00 18    BIT $1800
+.8:049c  8D 01 18    STA $1801
+.8:049f  A9 10       LDA #$10
+.8:04a1  2C 0D 18    BIT $180D
+.8:04a4  F0 FB       BEQ $04A1
+.8:04a6  C4 0C       CPY $0C
+.8:04a8  D0 EC       BNE $0496
+.8:04aa  60          RTS
+
+.8:04ab  FE 02 AD    INC $AD02,X
+.8:04ae  FE 02 D0    INC $D002,X
+.8:04b1  FB E8 D0    ISB $D0E8,Y
+.8:04b4  ED AD 7F    SBC $7FAD
+.8:04b7  FB 20 44    ISB $4420,Y
+.8:04ba  E5 CA       SBC $CA
+.8:04bc  86 FE       STX $FE
+.8:04be  A9 08       LDA #$08
+.8:04c0  85 FF       STA $FF
+.8:04c2  85 BA       STA $BA
+.8:04c4  20 6C FA    JSR $FA6C
+.8:04c7  84 BB       STY $BB
+.8:04c9  84 9D       STY $9D
+.8:04cb  84 C6       STY $C6
+.8:04cd  A5 C5       LDA $C5
+.8:04cf  C9 40       CMP #$40
+.8:04d1  F0 F1       BEQ $04C4
+.8:04d3  C9 28       CMP #$28
+.8:04d5  D0 02       BNE $04D9
+.8:04d7  E6 FF       INC $FF
+.8:04d9  C9 2B       CMP #$2B
+.8:04db  D0 02       BNE $04DF
+.8:04dd  C6 FF       DEC $FF
+.8:04df  A0 02       LDY #$02
+.8:04e1  84 BC       STY $BC
+.8:04e3  D9 97 FB    CMP $FB97,Y
+.8:04e6  F0 31       BEQ $0519
+.8:04e8  D9 9A FB    CMP $FB9A,Y
+.8:04eb  F0 3F       BEQ $052C
+.8:04ed  88          DEY
+.8:04ee  10 F3       BPL $04E3
+.8:04f0  C8          INY
+.8:04f1  D9 E3 FB    CMP $FBE3,Y
+.8:04f4  F0 06       BEQ $04FC
+.8:04f6  C0 08       CPY #$08
+.8:04f8  D0 F6       BNE $04F0
+.8:04fa  F0 C8       BEQ $04C4
+.8:04fc  98          TYA
+.8:04fd  0A          ASL A
+.8:04fe  48          PHA
