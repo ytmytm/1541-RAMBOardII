@@ -67,9 +67,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 4) save/restore a portion of ZP before/after reading all the sectors I wanted, so I can return to KERNAL when done. Returning to KERNAL is important for my utility project. I am using $86-$E5 for the ZP code and only save/restore $99-$B4 -- the rest is just zero'd out.
 */
 
-// SpeedDOS:
-// - C64 Kernal - that F800-F9AB space is free now
-// - C64 Kernal - patch to honor ,1 secondary address (it's tossed out right in SpeedDOS at f791)
+// SpeedDOS - C64 Kernal - that F800-F9AB space is free now
 
 // JiffyDOS:
 // ! not tested (XXX)
@@ -187,7 +185,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 		jsr $eddd
 		lda #>SpeedDOSRun
 		jsr $eddd
-		jmp $f791		// unlisten+wait for data XXX could patch it also to use loadaddress
+		jmp $f791		// unlisten+wait for data
 
 #endif
 
