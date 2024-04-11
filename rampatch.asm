@@ -132,10 +132,10 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 #endif
 
 #if ROMJIFFY1541II
-.print "Assembling JiffyROM 1541-II"
-.segmentdef Combined  [outBin="dos1541ii-251968-03-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,Patch11,Patch12,MainPatch", allowOverlap]
-.segment Base [start = $C000, max=$ffff]
-	.var data = LoadBinary("rom/dos1541ii-251968-03.bin")
+.print "Assembling JiffyDOS 1541-II"
+.segmentdef Combined  [outBin="JiffyDOS_1541-II-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,Patch11,Patch12,MainPatch", allowOverlap]
+.segment Base [start = $8000, max=$ffff]
+	.var data = LoadBinary("rom/JiffyDOS_1541-II.bin")
 	.fill $4000, $ff
 	.fill data.getSize(), data.get(i)
 #endif
@@ -143,6 +143,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 #if ROMSPEEDDOS35
 .print "Assembling SpeedDOS Plus 2.7 35 tracks ROM"
 .print "Use with parallel cable and C64-SpeedDOS-Plus-patched.bin"
+// without Patch12
 .segmentdef Combined  [outBin="1541-II-SpeedDOS-35-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,Patch11,MainPatch", allowOverlap]
 .segment Base [start = $8000, max=$ffff]
 	.var data = LoadBinary("rom/1541-II-SpeedDOS-35.rom")
@@ -159,6 +160,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 #if ROMSPEEDDOS40
 .print "Assembling SpeedDOS Plus+ 2.7 40 tracks ROM"
 .print "Use with parallel cable and C64-SpeedDOS-Plus+-patched.bin"
+// without Patch12
 .segmentdef Combined  [outBin="1541-II-SpeedDOS-40-patched.bin", segments="Base,Patch1,Patch3,Patch4,Patch5,Patch7,Patch8,Patch9,Patch10,Patch11,MainPatch", allowOverlap]
 .segment Base [start = $8000, max=$ffff]
 	.var data = LoadBinary("rom/1541-II-SpeedDOS-40.rom")
@@ -314,7 +316,11 @@ ReadCache:
 		sta $19					// sector number that we want to read, LF510 (read sector header puts it here for encoding, but some fastloaders might need it (SpeedDOS))
 		jsr DoReadCache
 		bcs !+
+#if ROMJIFFY1541II
+		jsr LF5E9				// JiffyDOS computes checksum while decoding GCR
+		sta $4B
 		jmp LF4F0				// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
+#endif
 		// not found? fall back on ROM and try to read it again
 !:		jsr LF50A				// replaced instruction
 		jmp LF4D4				// next instruction
