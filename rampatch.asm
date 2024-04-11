@@ -67,13 +67,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 4) save/restore a portion of ZP before/after reading all the sectors I wanted, so I can return to KERNAL when done. Returning to KERNAL is important for my utility project. I am using $86-$E5 for the ZP code and only save/restore $99-$B4 -- the rest is just zero'd out.
 */
 
-// ???
-// decode one full header (1st one) and compare ID with that from $F514 while updating $16/17/18/19 too?
-// could report at least ID mismatch (A=$02 + jump into f969)
-
 // SpeedDOS:
-// - improve to not duplicate code(?) (extract ReadCache into a procedure)
-// - do part of what LF4F0 does - verify checksum (end of ReadCacheFindSector)
 // - C64 Kernal - that F800-F9AB space is free now
 // - C64 Kernal - patch to honor ,1 secondary address (it's tossed out right in SpeedDOS at f791)
 
@@ -98,6 +92,7 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 .const LF4F0 = $F4F0 // part of read sector procedure right after GCR sector data is decoded, compare checksum
 .const LF50A = $F50A // wait for header and then for sync (F556), patched instruction at $F4D1
 .const LF4D4 = $F4D4 // next instruction after patch at $F4D1
+.const LF5E9 = $F5E9 // calculate parity of data block
 
 // note: if these zero-page location would cause compatibility issues, they can be moved to RAMBUF page, just making code a bit larger
 //       the only exceptions are pointers bufpage/bufrest but these *may* be moved to workarea at BTAB ($52)
@@ -318,8 +313,16 @@ ReadCache:
 		sta $18					// track that we want to read, LF510 (read sector header puts it here for encoding, but some fastloaders might need it (SpeedDOS))
 		iny						// yes, track is cached, just put GCR data back and jump into ROM
 		lda (HDRPNT),y			// needed sector number
-		sta hdroffs				// keep it here
 		sta $19					// sector number that we want to read, LF510 (read sector header puts it here for encoding, but some fastloaders might need it (SpeedDOS))
+		jsr DoReadCache
+		bcs !+
+		jmp LF4F0				// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
+		// not found? fall back on ROM and try to read it again
+!:		jsr LF50A				// replaced instruction
+		jmp LF4D4				// next instruction
+
+DoReadCache:					// A=sector number
+		sta hdroffs				// keep it here
 		// setup pointers
 		lda #>RAMEXP			// pages - first 256 bytes
 		sta bufpage+1
@@ -344,9 +347,8 @@ ReadCache:
 !:		inx
 		cpx RE_max_sector
 		bne !loop-
-		// not found? fall back on ROM and try to read it again
-		jsr LF50A				// replaced instruction
-		jmp LF4D4				// next instruction
+		sec
+		rts
 
 !found:
 		// decode GCR sector data
@@ -389,9 +391,9 @@ L9991:	sty $36
 		bne L9991
 L99B0:	lda $53			// not in 1571 code
 		sta $3A			// not in 1571 code
+		clc				// no errors
+		rts
 		}
-
-		jmp LF4F0		// we have data as if it came from the disk, continue in ROM: return 'ok' (or sector checksum read error)
 
 /////////////////////////////////////
 
@@ -787,8 +789,30 @@ L0313:	lda $18
 		bne SpeedDOSEOF				// error = end of transmission
 
 SpeedDOSNextSector:
-		// $19 contains sector number, find it in cache and update vector $30 (probably $0300 all the time)
-		jsr ReadCacheFindSector
+		// $19 contains sector number, find it in cache and decode into ($30 / BUFPNT)
+		lda $19
+		jsr DoReadCache
+		bcc !+						// sector found?
+		lda #$04					// 22, 'read error'
+		sta $00
+		bne SpeedDOSEOF
+
+		// check result
+!:		lda $38
+		cmp $47						// equal 7, beginning of data block?
+		beq !+						// yes
+		lda #$04					// 22, 'read error'
+		sta $00
+		bne SpeedDOSEOF
+
+!:		jsr LF5E9					// calculate parity of data block
+		cmp $3A
+		beq !+						// matches
+		lda #$05					// 23, 'read error'
+		sta $00
+		bne SpeedDOSEOF
+!:		lda #$01
+		sta $00
 
 		// send sectors (updating $18/$19) from current track cache until end of file or track change
 		ldy #0
@@ -859,81 +883,6 @@ L0494:	bit $180D
 		beq L0494
 		cpy $0C						// number of bytes to send
 		bne L0489
-		rts
-
-		// all of that again because at the end we need RTS, not JMP
-ReadCacheFindSector:
-		lda $19
-		sta hdroffs
-		// setup pointers
-		lda #>RAMEXP			// pages - first 256 bytes
-		sta bufpage+1
-		lda #>RAMEXP_REST		// remainders - following bytes until end of sector ($46 bytes)
-		sta bufrest+1
-		lda #0
-		sta bufpage
-		sta bufrest
-		// find sector
-		ldx #0
-!loop:	lda RE_cached_headers,x
-		cmp hdroffs
-		beq !found+
-		// no, next one
-		inc bufpage+1
-		lda bufrest
-		clc
-		adc #bufrestsize
-		sta bufrest
-		bcc !+
-		inc bufrest+1
-!:		inx
-		cpx RE_max_sector
-		bne !loop-
-		rts						// not found - no possible? XXX
-
-!found:
-		// decode GCR sector data
-		{
-		lda #$00		// customized LF8E0 / 9965
-		sta $34
-		sta $2E
-		sta $36
-		lda BUFPNT+1	// write to here
-		sta $2F
-		jsr Decode5GCR	// customized 98D9 / F7E6
-		lda $52
-		sta $38
-		ldy $36
-		lda $53
-		sta ($2E),Y
-		iny
-		lda $54
-		sta ($2E),Y
-		iny
-		lda $55
-		sta ($2E),Y
-		iny
-L9991:	sty $36
-		jsr Decode5GCR
-		ldy $36
-		lda $52
-		sta ($2E),Y
-		iny
-		beq L99B0
-		lda $53
-		sta ($2E),Y
-		iny
-		lda $54
-		sta ($2E),Y
-		iny
-		lda $55
-		sta ($2E),Y
-		iny
-		bne L9991
-L99B0:	lda $53			// not in 1571 code
-		sta $3A			// not in 1571 code
-		}
-		// XXX there is no checksum check here
 		rts
 
 #endif
