@@ -36,16 +36,14 @@
 // - needs only one disk revolution (20ms with 300rpm) to read whole track
 // - sector GCR decoding errors are reported normally
 // - header GCR decoding errors are not reported - but if sector is not found we fall back on ROM routine which should report it during next disk revolution
-// - same patch for both variations: stock ROM / JiffyDOS
+// - same patch for both variations: stock ROM / JiffyDOS / SpeedDOS / SpeedDOS+
 
 // Excellent resources:
 // http://www.unusedino.de/ec64/technical/formats/g64.html - 10 header GCR bytes? but DOS reads only 8 http://unusedino.de/ec64/technical/aay/c1541/ro41f3b1.htm
 // http://unusedino.de/ec64/technical/aay/c1541
 //	- note: 1581 disassembly contains references to 1571 ROM
 // https://spiro.trikaliotis.net/cbmrom
-// decode 1541 sector data from GCR on the fly as in https://www.linusakesson.net/programming/gcr-decoding/index.php ?
-//  - not possible: it's faster to decode using 1571 ROM lookups
-//    it would be faster for reading single sectors, but we can't cache whole track - there is no time between sectors to move data outside of stack
+// decode 1541 sector data from GCR on the fly as in https://www.linusakesson.net/programming/gcr-decoding/index.php or Spindle 3.1
 
 /*
 
@@ -69,9 +67,6 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 
 // SpeedDOS - C64 Kernal - that F800-F9AB space is free now
 
-// JiffyDOS:
-// ! not tested (XXX)
-
 .const HEADER = $16
 .const HDRPNT = $32
 .const STAB = $24
@@ -85,7 +80,6 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 // 1541 ROM locations (1571 in 1541 mode)
 .const LC1D1 = $C1D1 // find drive number, instruction patched at $D005
 .const LF556 = $F556 // wait for sync, set Y to 0
-//.const LF497 = $F497 // decode 8 GCR bytes from $24 into header structure at $16-$1A (track at $18, sector at $19)
 .const LF4ED = $F4ED // part of read sector procedure right after GCR sector data is read - decode GCR from BUFPNT+$01BA:FF into BUFPNT
 .const LF4F0 = $F4F0 // part of read sector procedure right after GCR sector data is decoded, compare checksum
 .const LF50A = $F50A // wait for header and then for sync (F556), patched instruction at $F4D1
@@ -247,10 +241,6 @@ if the first byte of data is not $55, I give up after 3 tries and report error 0
 /////////////////////////////////////
 
 .segment MainPatch [min=$A000,max=$BFFF]
-
-		// $E31C-$E4FB area used for REL files only (hopefully)
-		//.pc = $E31C "Patch"
-		//rts
 
 		.pc = $A000
 
