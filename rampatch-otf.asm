@@ -318,6 +318,7 @@ ReadSector:
 !:		lda $0100,x
 		sta RAMEXP+$0100,x
 		inx
+		cpx #$46
 		bne !-
 		//
 
@@ -401,6 +402,7 @@ ReadSectorEnd:
 !:		lda RAMEXP+$0100,y
 		sta $0100,y
 		iny
+		cpy #$46
 		bne !-
 		ldx RAMEXP+$ff
 		txs
