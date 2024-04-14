@@ -304,8 +304,6 @@ ReadSector:
 		//
 		lda #1
 		sta $54					// by default no error
-		tsx
-		stx RAMEXP+$ff
 		ldx #0
 !:		lda.z zpc_start,x
 		sta RAMEXP,x
@@ -314,13 +312,16 @@ ReadSector:
 		inx
 		cpx #(zpc_code_end-zpc_code_start+1)
 		bne !-
-		ldx #0
-!:		lda $0100,x
-		sta RAMEXP+$0100,x
+		//
+		lda $0101
+		sta RAMEXP+$0101
+		tsx
+		stx RAMEXP+$ff
+!:		pla
+		sta RAMEXP+$0101,x
 		inx
 		cpx #$46
 		bne !-
-		//
 
 		lda #0
 		eor $16
@@ -335,7 +336,7 @@ ReadSector:
 		// Wait for sync + compare encoded header (like DOS does)
 waitheader:
 		jsr $f556				// wait for sync
-		;ldy #0					// F556 sets Y to 0
+		//ldy #0					// F556 sets Y to 0
 !:		bvc *
 		clv
 		lda $1c01
@@ -398,14 +399,18 @@ ReadSectorEnd:
 		dey
 		cpy #$ff
 		bne !-
-		ldy #0
-!:		lda RAMEXP+$0100,y
-		sta $0100,y
-		iny
-		cpy #$46
-		bne !-
-		ldx RAMEXP+$ff
+
+		//
+		lda RAMEXP+$0101
+		sta $0101
+		ldx #$45
 		txs
+!:		lda RAMEXP+$0100,x
+		pha
+		dex
+		cpx RAMEXP+$ff
+		bne !-
+
 #if ROMJIFFY1541II
 		lda $53
 		sta $4B
