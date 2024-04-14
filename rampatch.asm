@@ -763,72 +763,74 @@ CopyRestVector:
 		// file was opened t&s is in $18/19
 		// all RAM can be used (SpeedDOS puts its own code in $0300-$0500 while $0600-$0700 and $0140-FF are for data buffers)
 SpeedDOSLoader:
+
+		lda #$4c
+		sta $0300
+		lda #<SpeedDOSNextSector
+		sta $0301
+		lda #>SpeedDOSNextSector
+		sta $0302
+
+		ldx #0
+!:		lda.z zpc_start,x
+		sta RAMEXP,x
+		lda zpc_code_start,x
+		sta.z zpc_start,x
+		inx
+		cpx #(zpc_code_end-zpc_code_start+1)
+		bne !-
+		//
+		lda $0101
+		sta RAMEXP+$0101
+		tsx
+		stx RAMEXP+$ff
+!:		pla
+		sta RAMEXP+$0101,x
+		inx
+		cpx #$46
+		bne !-
+
 		ldx #$FF					// <--- START, $18/19 has file starting t&s
 		stx $1803					// PA out
 		inx
 		stx $0F
 		lda #$0B
 		sta $180C					// handshake
-		bne SpeedDOSNextSector		// skip over first data load - that track is already cached
+//		bne SpeedDOSNextSector		// skip over first data load - that track is already cached
 
 L0313:	lda $18
 		sta $06
 		lda $19
 		sta $07
-		lda #$80					// read first sector - track is now fully cached
+		lda #$E0					// read first sector - track is now fully cached
 		sta $00
 !:		lda $00
 		bmi !-
-		cmp #$01
-		bne SpeedDOSEOF				// error = end of transmission
-
-SpeedDOSNextSector:
-		// $19 contains sector number, find it in cache and decode into ($30 / BUFPNT)
-		lda $19
-		jsr DoReadCache
-		bcc !+						// sector found?
-		lda #$04					// 22, 'read error'
-		sta $00
-		bne SpeedDOSEOF
-
-		// check result
-!:		lda $38
-		cmp $47						// equal 7, beginning of data block?
-		beq !+						// yes
-		lda #$04					// 22, 'read error'
-		sta $00
-		bne SpeedDOSEOF
-
-!:		jsr LF5E9					// calculate parity of data block
-		cmp $3A
-		beq !+						// matches
-		lda #$05					// 23, 'read error'
-		sta $00
-		bne SpeedDOSEOF
-!:		lda #$01
-		sta $00
-
-		// send sectors (updating $18/$19) from current track cache until end of file or track change
-		ldy #0
-		lda (BUFPNT),Y
-		bne L043B					// non-zero track, this is not the last sector
-		iny
-		lda (BUFPNT),Y				// number of bytes in the last sector
-		jsr SpeedDOSSendBlock		// send it out
-		jmp SpeedDOSEOF
-
-L043B:	tax							// preserve next track number in X
-		iny
-		lda (BUFPNT),Y
-		sta $19						// next sector
-		lda #$FF
-		jsr SpeedDOSSendBlock		// send out $FE bytes from current buffer
-		cpx $18						// next track the same?
-		beq SpeedDOSNextSector		// yes: send next sector
-		stx $18						// no: new track
-		bne L0313
+		cmp #$10					// new track
+		beq L0313
+//		jmp SpeedDOSEOF				// anything else (error or not) is end of transmission
 
 SpeedDOSEOF:
+		//
+		ldx #0
+		stx $53					// checksum (calculated)
+!:		lda RAMEXP,x
+		sta.z zpc_start,x
+		inx
+		cpx #(zpc_code_end-zpc_code_start+1)
+		bne !-
+		//
+		lda RAMEXP+$0101
+		sta $0101
+		ldx #$45
+		txs
+!:		lda RAMEXP+$0100,x
+		pha
+		dex
+		cpx RAMEXP+$ff
+		bne !-
+
+
 L0333:	lda #$00					// 00 = end of file (0 bytes to follow)
 		jsr SpeedDOSSendByte		// send byte
 		lda $00
@@ -852,6 +854,125 @@ L035B:	clc							// error number
 		adc #$1E
 		jmp $E645					// Print error message into error buffer
 
+		// this is called from IRQ
+SpeedDOSNextSector:
+		// $19 contains sector number, find it in cache and decode into ($30 / BUFPNT)
+		//lda $19
+		lda #0
+		eor $16
+		eor $17
+		eor $18
+		eor $19
+		sta $1a					// parity
+		jsr $f934				// encode to GCR, result in $24-2b
+
+		ldx #90					// 90 attempts
+
+		// Wait for sync + compare encoded header (like DOS does)
+waitheader:
+		jsr $f556				// wait for sync
+		//ldy #0					// F556 sets Y to 0
+!:		bvc *
+		clv
+		lda $1c01
+		cmp $24,y
+		bne nextheader			// next one
+		iny
+		cpy #8
+		bne !-					
+		beq foundheader
+
+nextheader:
+		dex
+		bne waitheader
+		lda #2					// 20, 'read error'
+		sta $00
+		rts
+
+foundheader:
+		// code from Spindle 3.1 by lft, linusakesson.net/software/spindle/
+		// Wait for a data block
+
+		ldx	#0					// will be ff when entering the loop
+		txs
+waitsync:
+		bit	$1c00
+		bpl	*-3
+
+		bit	$1c00
+		bmi	*-3
+
+		lda	$1c01				// ack the sync byte
+		clv
+		bvc	*
+		lda	$1c01				// aaaaabbb, which is 01010.010(01) for a header
+		clv						// or 01010.101(11) for data
+		eor	#$55
+		bne	waitsync
+		jmp zpc_start
+zp_return:
+		.byte	$6b,$f0			// arr imm, ddddd000
+		tay
+		lda	gcrdecode,x			// x = 000ccccc
+		ora	gcrdecode+1,y		// y = ddddd000, lsb = 00000001
+		sta $55					// checksum (from disk)
+		
+ReadSectorOTFEnd:
+		lda #$00
+		sta $53
+		ldy #$ff
+!:		pla
+		sta $0400,y
+		eor $53						// checksum (calculated)
+		sta $53
+		dey
+		cpy #$ff
+		bne !-
+
+//		lda #$04					// 22, 'read error' (sector not found)
+//		sta $00
+//		rts
+
+		// check result
+!:		lda $38
+		cmp $47						// equal 7, beginning of data block?
+		beq !+						// yes
+		lda #$04					// 22, 'read error'
+		sta $00
+		rts
+
+!:		lda $55					// calculate parity of data block
+		cmp $53
+		beq !+						// matches
+		lda #$05					// 23, 'read error'
+		sta $00
+		rts
+!:		lda #$01
+		sta $00
+
+		// send sectors (updating $18/$19) from current track cache until end of file or track change
+		ldy #0
+		lda $0400,Y
+		bne L043B					// non-zero track, this is not the last sector
+		iny
+		lda $0400,Y					// number of bytes in the last sector
+		jsr SpeedDOSSendBlock		// send it out
+		rts
+
+L043B:	tax							// preserve next track number in X
+		iny
+		lda $0400,Y
+		sta $19						// next sector
+		lda #$FF
+		jsr SpeedDOSSendBlock		// send out $FE bytes from current buffer
+		cpx $18						// next track the same?
+		bne !+						// no: new track
+		jmp SpeedDOSNextSector		// yes: send next sector
+!:		stx $18						// no: new track
+		lda #$10
+		sta $00
+		rts
+
 SpeedDOSSendByte:					// send byte with watchdog reset
 L0405:  bit $1800					// send byte ; clear handshake
 		sta $1801					// send byte
@@ -869,7 +990,7 @@ L0482:	sta $0C						// send out number of bytes that follow
 		jsr L0405
 		ldy #$01					// send out sector data
 L0489:	iny
-		lda (BUFPNT),Y
+		lda $0400,Y
 		bit $1800					// clear flag
 		sta $1801
 		lda #$10					// wait for handshake
@@ -878,6 +999,135 @@ L0494:	bit $180D
 		cpy $0C						// number of bytes to send
 		bne L0489
 		rts
+
+////
+
+zpc_code_start:
+.pseudopc $0070 {
+zpc_start:
+		bvc	*
+		lda	$1c01				// bbcccccd
+		clv
+		.byte	$4b,$3f			// asr imm, d -> carry
+		sta.z first_mod3+1
+
+		bvc	*
+		lax	$1c01				// 0 1 2 3	ddddeeee
+		.byte	$6b,$f0			// 4 5		arr imm, ddddd000
+		clv						// 6 7
+		tay						// 8 9
+first_mod3:	// XXX!!!
+		lda	gcrdecode			// 10 11 12 13	lsb = 000ccccc
+		ora	gcrdecode+1,y		// 14 15 16 17	y = ddddd000, lsb = 00000001
+		pha						// 18 19 20	first byte to $100
+
+		// get sector number from the lowest 5 bits of the first byte
+
+		and	#$1f				// 21 22
+		tay						// 23 24
+		nop // lda interested,y	// 25 26
+		nop // lda interested,y	// 27 28
+		nop // beq notint (not taken)	// 29 30
+		//lda	interested,y		// 25 26 27 28
+//mod_safety:
+		//beq	notint			// 29 30
+
+		jmp	zpc_entry			// 31 32 33	x = ----eeee
+
+prof_zp:
+zpc_loop:
+		// This nop is needed for the slow bitrates (at least for 00),
+		// because apparently the third byte after a bvc sync might not be
+		// ready at cycle 65 after all.
+
+		// However, with the nop, the best case time for the entire loop
+		// is 128 cycles, which leaves too little slack for motor speed
+		// variance at bitrate 11.
+
+		// Thus, we modify the bne instruction at the end of the loop to
+		// either include or skip the nop depending on the current
+		// bitrate.
+
+		nop
+
+		lax	$1c01				// 62 63 64 65	ddddeeee
+		.byte	$6b,$f0			// 66 67		arr imm, ddddd000
+		clv						// 68 69
+		tay						// 70 71
+zpc_mod3:	lda	gcrdecode		// 72 73 74 75	lsb = 000ccccc
+		ora	gcrdecode+1,y		// 76 77 78 79	y = ddddd000, lsb = 00000001
+
+		// first read in [0..25]
+		// second read in [32..51]
+		// third read in [64..77]
+		// clv in [64..77]
+		// in total, 80 cycles from bvc
+
+		bvc	*					// 0 1
+
+		pha						// 2 3 4		second complete byte (nybbles c, d)
+zpc_entry:
+		lda	#$0f				// 5 6
+		sax.z zpc_mod5+1			// 7 8 9
+
+		lda	$1c01				// 10 11 12 13	efffffgg
+		ldx	#$03				// 14 15
+		sax.z zpc_mod7+1			// 16 17 18
+		.byte	$4b,$fc			// 19 20		asr imm, 0efffff0
+		tay						// 21 22
+		ldx	#$79				// 23 24
+zpc_mod5:	lda	gcrdecode,x		// 25 26 27 28	lsb = 0000eeee, x = 01111001
+		eor	gcrdecode+$40,y		// 29 30 31 32	y = 0efffff0, lsb = 01000000
+		pha						// 33 34 35	third complete byte (nybbles e, f)
+
+		lax	$1c01				// 36 37 38 39	ggghhhhh
+		clv						// 40 41
+		and	#$1f				// 42 43
+		tay						// 44 45
+
+		// first read in [0..25]
+		// second read in [32..51]
+		// clv in [32..51]
+		// in total, 46 cycles from bvc
+
+		bvc	*					// 0 1
+
+		lda	#$e0				// 2 3
+		.byte $cb, $00			// sbx	#0			; 4 5
+zpc_mod7:	lda	gcrdecode,x		// 6 7 8 9	x = ggg00000, lsb = 000000gg
+		ora	gcrdecode+$20,y		// 10 11 12 13	y = 000hhhhh, lsb = 00100000
+		pha						// 14 15 16	fourth complete byte (nybbles g, h)
+
+		// start of a new 5-byte chunk
+
+		lda	$1c01				// 17 18 19 20	aaaaabbb
+		ldx	#$f8				// 21 22
+		sax.z zpc_mod1+1			// 23 24 25
+		and	#$07				// 26 27
+		ora	#$08				// 28 29
+		tay						// 30 31
+
+		lda	$1c01				// 32 33 34 35	bbcccccd
+		ldx	#$c0				// 36 37
+		sax.z zpc_mod2+1			// 38 39 40
+		.byte	$4b,$3f			// 41 42		asr imm, 000ccccc, d -> carry
+		sta.z zpc_mod3+1			// 43 44 45
+
+zpc_mod1:	lda	gcrdecode		// 46 47 48 49	lsb = aaaaa000
+zpc_mod2:	eor	gcrdecode,y		// 50 51 52 53	lsb = bb000000, y = 00001bbb
+		pha						// 54 55 56	first complete byte (nybbles a, b)
+
+		tsx						// 57 58
+.var BNE_WITH_NOP	=	(zpc_loop - (* + 2)) & $ff
+.var BNE_WITHOUT_NOP	=	(zpc_loop + 1 - (* + 2)) & $ff
+zpc_bne:	.byte	$d0,BNE_WITHOUT_NOP	// 59 60 61	bne zpc_loop
+
+		ldx	z:zpc_mod3+1		// 61 62 63
+		lda	$1c01				// 64 65 66 67	ddddeeee
+		jmp	zp_return
+
+}
+zpc_code_end:
 
 #endif
 
@@ -972,3 +1222,6 @@ LA30D:	.byte $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $08, $00, $01, $ff, $0
 		.byte $ff, $ff, $02, $03, $ff, $0f, $06, $07, $ff, $09, $0a, $0b, $ff, $0d, $0e, $ff
 		.byte $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $08, $00, $01, $ff, $0c, $04, $05
 		.byte $ff, $ff, $02, $03, $ff, $0f, $06, $07, $ff, $09, $0a, $0b, $ff, $0d, $0e, $ff
+
+gcrdecode:
+.byte $03, $99, $99, $99, $99, $99, $99, $99, $99, $80, $00, $10, $99, $c0, $40, $50, $99, $99, $20, $30, $99, $f0, $60, $70, $99, $90, $a0, $b0, $99, $d0, $e0, $7f, $76, $80, $99, $90, $99, $99, $99, $76, $7f, $08, $00, $01, $99, $0c, $04, $05, $99, $99, $02, $03, $99, $0f, $06, $07, $99, $09, $0a, $0b, $99, $0d, $0e, $99, $99, $00, $20, $a0, $6c, $4c, $2c, $0c, $80, $08, $08, $0c, $99, $0f, $09, $0d, $00, $00, $08, $99, $00, $99, $01, $99, $10, $01, $0c, $99, $04, $99, $05, $99, $99, $10, $30, $b0, $02, $99, $03, $99, $c0, $0c, $0f, $99, $06, $99, $07, $99, $40, $04, $09, $99, $0a, $99, $0b, $99, $50, $05, $0d, $99, $0e, $90, $00, $d0, $40, $99, $20, $e0, $60, $80, $a0, $c0, $e0, $99, $00, $04, $02, $06, $0a, $0e, $20, $02, $18, $99, $10, $99, $11, $99, $30, $03, $1c, $99, $14, $99, $15, $99, $99, $c0, $f0, $d0, $12, $99, $13, $99, $f0, $0f, $1f, $99, $16, $99, $17, $99, $60, $06, $19, $99, $1a, $99, $1b, $99, $70, $07, $1d, $99, $1e, $a4, $a4, $a4, $a3, $40, $60, $e0, $15, $13, $12, $11, $90, $09, $01, $05, $03, $07, $0b, $99, $a0, $0a, $99, $99, $99, $99, $99, $99, $b0, $0b, $99, $99, $99, $99, $99, $99, $99, $50, $70, $99, $99, $99, $99, $99, $d0, $0d, $99, $99, $99, $99, $99, $99, $e0, $0e, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99
