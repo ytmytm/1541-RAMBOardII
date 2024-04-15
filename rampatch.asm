@@ -953,10 +953,10 @@ L043B:	tax							// preserve next track number in X
 		iny
 		lda $0400,Y
 		sta $19						// next sector
-		lda #$FF
-		jsr SpeedDOSSendBlock		// send out $FE bytes from current buffer
 		cpx $18						// next track the same?
 		bne !+						// no: new track
+		lda #$FF
+		jsr SpeedDOSSendBlock		// send out $FE bytes from current buffer
 		jmp SpeedDOSNextSector		// yes: send next sector
 !:		stx $06						// no: new track
 		lda $18
@@ -968,10 +968,7 @@ L043B:	tax							// preserve next track number in X
 		{
 .var req_track = $06
 .var currtrack = $07
-
-wait:	bit $1c0d					// wait for previous step to settle
-		bpl wait
-
+movehead:
 		lda	$1c00
 
 		ldx	req_track
@@ -1001,7 +998,7 @@ do_seek:
 		bcs	ratedone
 		dey
 ratedone:
-		ldx	zonebranch,y
+		ldx	zonebranch,y			// XXX this should be tested in the last speedzone (high tracks)
 		stx.z	zpc_bne+1
 
 //		ldx	zonesectors,y
@@ -1010,12 +1007,20 @@ ratedone:
 		ora	zonebits,y				// also turn on motor and LED
 		sta	$1c00
 
-	lda #$4b
+	lda #$4b	// Spindle uses only $19 delay
 	sta $1805
+	{		// send last sector while head is moving (10k cycles out of total 30k delay for both halfsteps)
+			lda $0400					// initially it can't be 0
+			beq !+
+			lda #$FF
+			jsr SpeedDOSSendBlock		// send out $FE bytes from current buffer
+			lda #0						// mark that it was already sent
+			sta $0400
+!:	}
 	lda $1805
 	bne *-3
 
-		jmp	wait
+		jmp	movehead
 
 fetch_here:
 
