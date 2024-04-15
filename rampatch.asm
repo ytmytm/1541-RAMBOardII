@@ -766,9 +766,9 @@ SpeedDOSLoader:
 
 		lda #$4c
 		sta $0300
-		lda #<SpeedDOSNextSector
+		lda #<SpeedDOSLoadSectors
 		sta $0301
-		lda #>SpeedDOSNextSector
+		lda #>SpeedDOSLoadSectors
 		sta $0302
 
 		ldx #0
@@ -778,16 +778,6 @@ SpeedDOSLoader:
 		sta.z zpc_start,x
 		inx
 		cpx #(zpc_code_end-zpc_code_start+1)
-		bne !-
-		//
-		lda $0101
-		sta RAMEXP+$0101
-		tsx
-		stx RAMEXP+$ff
-!:		pla
-		sta RAMEXP+$0101,x
-		inx
-		cpx #$46
 		bne !-
 
 		ldx #$FF					// <--- START, $18/19 has file starting t&s
@@ -820,16 +810,6 @@ SpeedDOSEOF:
 		cpx #(zpc_code_end-zpc_code_start+1)
 		bne !-
 		//
-		lda RAMEXP+$0101
-		sta $0101
-		ldx #$45
-		txs
-!:		lda RAMEXP+$0100,x
-		pha
-		dex
-		cpx RAMEXP+$ff
-		bne !-
-
 
 L0333:	lda #$00					// 00 = end of file (0 bytes to follow)
 		jsr SpeedDOSSendByte		// send byte
@@ -855,7 +835,21 @@ L035B:	clc							// error number
 		jmp $E645					// Print error message into error buffer
 
 		// this is called from IRQ
+
+SpeedDOSLoadSectors:
+		//
+		lda $0101
+		sta RAMEXP+$0101
+		tsx
+		stx RAMEXP+$ff
+!:		pla
+		sta RAMEXP+$0101,x
+		inx
+		cpx #$46
+		bne !-
+
 SpeedDOSNextSector:
+
 		// $19 contains sector number, find it in cache and decode into ($30 / BUFPNT)
 		//lda $19
 		lda #0
@@ -887,7 +881,7 @@ nextheader:
 		bne waitheader
 		lda #2					// 20, 'read error'
 		sta $00
-		rts
+		jmp SpeedDOSEndIRQ
 
 foundheader:
 		// code from Spindle 3.1 by lft, linusakesson.net/software/spindle/
@@ -939,14 +933,14 @@ ReadSectorOTFEnd:
 		beq !+						// yes
 		lda #$04					// 22, 'read error'
 		sta $00
-		rts
+		jmp SpeedDOSEndIRQ
 
 !:		lda $55					// calculate parity of data block
 		cmp $53
 		beq !+						// matches
 		lda #$05					// 23, 'read error'
 		sta $00
-		rts
+		jmp SpeedDOSEndIRQ
 !:		lda #$01
 		sta $00
 
@@ -957,7 +951,7 @@ ReadSectorOTFEnd:
 		iny
 		lda $0400,Y					// number of bytes in the last sector
 		jsr SpeedDOSSendBlock		// send it out
-		rts
+		jmp SpeedDOSEndIRQ
 
 L043B:	tax							// preserve next track number in X
 		iny
@@ -971,6 +965,17 @@ L043B:	tax							// preserve next track number in X
 !:		stx $18						// no: new track
 		lda #$10
 		sta $00
+
+SpeedDOSEndIRQ:
+		lda RAMEXP+$0101
+		sta $0101
+		ldx #$45
+		txs
+!:		lda RAMEXP+$0100,x
+		pha
+		dex
+		cpx RAMEXP+$ff
+		bne !-
 		rts
 
 SpeedDOSSendByte:					// send byte with watchdog reset
