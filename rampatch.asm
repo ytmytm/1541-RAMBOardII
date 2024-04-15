@@ -786,7 +786,6 @@ SpeedDOSLoader:
 		stx $0F
 		lda #$0B
 		sta $180C					// handshake
-//		bne SpeedDOSNextSector		// skip over first data load - that track is already cached
 
 L0313:	lda $18
 		sta $06
@@ -796,9 +795,6 @@ L0313:	lda $18
 		sta $00
 !:		lda $00
 		bmi !-
-		cmp #$10					// new track
-		beq L0313
-//		jmp SpeedDOSEOF				// anything else (error or not) is end of transmission
 
 SpeedDOSEOF:
 		//
@@ -962,9 +958,72 @@ L043B:	tax							// preserve next track number in X
 		cpx $18						// next track the same?
 		bne !+						// no: new track
 		jmp SpeedDOSNextSector		// yes: send next sector
-!:		stx $18						// no: new track
-		lda #$10
-		sta $00
+!:		stx $06						// no: new track
+		lda $18
+		sta $07						// current track
+		asl $06						// new track halfsteps
+		asl $07						// current track halfsteps
+		stx $18						// we will be on the new track
+
+		{
+.var req_track = $06
+.var currtrack = $07
+
+wait:	bit $1c0d					// wait for previous step to settle
+		bpl wait
+
+		lda	$1c00
+
+		ldx	req_track
+		cpx	currtrack
+		beq	fetch_here
+
+		and	#$0b					// clear zone and motor bits for now
+		bcs	seek_up
+seek_down:
+		dec	currtrack
+		//clc
+		adc	#$03					// bits should decrease
+		bcc	do_seek					// always
+seek_up:
+		inc	currtrack
+		//sec
+		adc	#$01-1					// bits should increase
+do_seek:
+		ldy	#3
+		cpx	#31*2
+		bcs	ratedone
+		dey
+		cpx	#25*2
+		bcs	ratedone
+		dey
+		cpx	#18*2
+		bcs	ratedone
+		dey
+ratedone:
+		ldx	zonebranch,y
+		stx.z	zpc_bne+1
+
+//		ldx	zonesectors,y
+//		stx	tracklength
+
+		ora	zonebits,y				// also turn on motor and LED
+		sta	$1c00
+
+	lda #$4b
+	sta $1805
+	lda $1805
+	bne *-3
+
+		jmp	wait
+
+fetch_here:
+
+		ora	#$0c					// turn on motor and usually LED
+		sta	$1c00
+		}
+
+		jmp SpeedDOSNextSector
 
 SpeedDOSEndIRQ:
 		lda RAMEXP+$0101
@@ -1229,4 +1288,27 @@ LA30D:	.byte $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $08, $00, $01, $ff, $0
 		.byte $ff, $ff, $02, $03, $ff, $0f, $06, $07, $ff, $09, $0a, $0b, $ff, $0d, $0e, $ff
 
 gcrdecode:
-.byte $03, $99, $99, $99, $99, $99, $99, $99, $99, $80, $00, $10, $99, $c0, $40, $50, $99, $99, $20, $30, $99, $f0, $60, $70, $99, $90, $a0, $b0, $99, $d0, $e0, $7f, $76, $80, $99, $90, $99, $99, $99, $76, $7f, $08, $00, $01, $99, $0c, $04, $05, $99, $99, $02, $03, $99, $0f, $06, $07, $99, $09, $0a, $0b, $99, $0d, $0e, $99, $99, $00, $20, $a0, $6c, $4c, $2c, $0c, $80, $08, $08, $0c, $99, $0f, $09, $0d, $00, $00, $08, $99, $00, $99, $01, $99, $10, $01, $0c, $99, $04, $99, $05, $99, $99, $10, $30, $b0, $02, $99, $03, $99, $c0, $0c, $0f, $99, $06, $99, $07, $99, $40, $04, $09, $99, $0a, $99, $0b, $99, $50, $05, $0d, $99, $0e, $90, $00, $d0, $40, $99, $20, $e0, $60, $80, $a0, $c0, $e0, $99, $00, $04, $02, $06, $0a, $0e, $20, $02, $18, $99, $10, $99, $11, $99, $30, $03, $1c, $99, $14, $99, $15, $99, $99, $c0, $f0, $d0, $12, $99, $13, $99, $f0, $0f, $1f, $99, $16, $99, $17, $99, $60, $06, $19, $99, $1a, $99, $1b, $99, $70, $07, $1d, $99, $1e, $a4, $a4, $a4, $a3, $40, $60, $e0, $15, $13, $12, $11, $90, $09, $01, $05, $03, $07, $0b, $99, $a0, $0a, $99, $99, $99, $99, $99, $99, $b0, $0b, $99, $99, $99, $99, $99, $99, $99, $50, $70, $99, $99, $99, $99, $99, $d0, $0d, $99, $99, $99, $99, $99, $99, $e0, $0e, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99
+		.byte $03, $99, $99, $99, $99, $99, $99, $99, $99, $80, $00, $10, $99, $c0, $40, $50
+		.byte $99, $99, $20, $30, $99, $f0, $60, $70, $99, $90, $a0, $b0, $99, $d0, $e0, $7f
+		.byte $76, $80, $99, $90, $99, $99, $99, $76, $7f, $08, $00, $01, $99, $0c, $04, $05
+		.byte $99, $99, $02, $03, $99, $0f, $06, $07, $99, $09, $0a, $0b, $99, $0d, $0e, $99
+		.byte $99, $00, $20, $a0, $6c, $4c, $2c, $0c, $80, $08, $08, $0c, $99, $0f, $09, $0d
+		.byte $00, $00, $08, $99, $00, $99, $01, $99, $10, $01, $0c, $99, $04, $99, $05, $99
+		.byte $99, $10, $30, $b0, $02, $99, $03, $99, $c0, $0c, $0f, $99, $06, $99, $07, $99
+		.byte $40, $04, $09, $99, $0a, $99, $0b, $99, $50, $05, $0d, $99, $0e, $90, $00, $d0
+		.byte $40, $99, $20, $e0, $60, $80, $a0, $c0, $e0, $99, $00, $04, $02, $06, $0a, $0e
+		.byte $20, $02, $18, $99, $10, $99, $11, $99, $30, $03, $1c, $99, $14, $99, $15, $99
+		.byte $99, $c0, $f0, $d0, $12, $99, $13, $99, $f0, $0f, $1f, $99, $16, $99, $17, $99
+		.byte $60, $06, $19, $99, $1a, $99, $1b, $99, $70, $07, $1d, $99, $1e, $a4, $a4, $a4
+		.byte $a3, $40, $60, $e0, $15, $13, $12, $11, $90, $09, $01, $05, $03, $07, $0b, $99
+		.byte $a0, $0a, $99, $99, $99, $99, $99, $99, $b0, $0b, $99, $99, $99, $99, $99, $99
+		.byte $99, $50, $70, $99, $99, $99, $99, $99, $d0, $0d, $99, $99, $99, $99, $99, $99
+		.byte $e0, $0e, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99, $99
+
+zonebits:
+		.byte $6c, $4c, $2c, $0c // gcrdecode + $44
+zonebranch:
+		.byte $a4, $a4, $a4, $a3 // gcrdecode + $bd
+zonesectors:
+		.byte $15, $13, $12, $11 // gcrdecode + $c4
+
