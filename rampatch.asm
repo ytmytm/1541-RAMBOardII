@@ -297,7 +297,8 @@ ReadSector:
 		lda (HDRPNT),y			// is cached track the same as required track?
 		cmp RE_cached_track
 		beq ReadCache
-		jmp ReadTrack			// no - read the track
+		jsr ReadTrack			// no - read the track
+		jmp ReadSector
 
 ReadCache:
 		sta $18					// track that we want to read, LF510 (read sector header puts it here for encoding, but some fastloaders might need it (SpeedDOS))
@@ -514,8 +515,7 @@ DecodeLoop:
 		pla
 		sta BUFPNT
 
-		// all was said and done, now read the sector from cache
-		jmp ReadSector
+		rts
 
 /////////////////////////////////////
 // 1571
@@ -763,24 +763,90 @@ CopyRestVector:
 		// file was opened t&s is in $18/19
 		// all RAM can be used (SpeedDOS puts its own code in $0300-$0500 while $0600-$0700 and $0140-FF are for data buffers)
 SpeedDOSLoader:
+		lda #$4c
+		sta $0300
+		lda #<SpeedDOSLoaderStart
+		sta $0301
+		lda #>SpeedDOSLoaderStart
+		sta $0302
+		lda $18
+		sta $06
+		lda #0
+		sta $07
+		lda #$e0
+		sta $00
+!:		bit $00
+		bmi !-
+		rts
+
+SpeedDOSLoaderStart:
 		ldx #$FF					// <--- START, $18/19 has file starting t&s
 		stx $1803					// PA out
 		inx
 		stx $0F
 		lda #$0B
 		sta $180C					// handshake
-		bne SpeedDOSNextSector		// skip over first data load - that track is already cached
+		jmp SpeedDOSNextSector		// skip over first data load - that track is already cached
 
-L0313:	lda $18
-		sta $06
-		lda $19
-		sta $07
-		lda #$80					// read first sector - track is now fully cached
-		sta $00
-!:		lda $00
-		bmi !-
-		cmp #$01
-		bne SpeedDOSEOF				// error = end of transmission
+SpeedDOSMoveHead:					// move head from current track ($18) to new one (X)
+		lda $18
+		sta $07						// current track
+		stx $18
+		stx $06						// new track
+		asl $06						// new halfsteps
+		asl $07						// current halfsteps
+{
+.var req_track = $06
+.var currtrack = $07
+movehead:
+		lda	$1c00
+
+		ldx	req_track
+		cpx	currtrack
+		beq	fetch_here
+
+		and	#$0b					// clear zone and motor bits for now
+		bcs	seek_up
+seek_down:
+		dec	currtrack
+		//clc
+		adc	#$03					// bits should decrease
+		bcc	do_seek					// always
+seek_up:
+		inc	currtrack
+		//sec
+		adc	#$01-1					// bits should increase
+do_seek:
+		ldy	#3
+		cpx	#31*2
+		bcs	ratedone
+		dey
+		cpx	#25*2
+		bcs	ratedone
+		dey
+		cpx	#18*2
+		bcs	ratedone
+		dey
+ratedone:
+		ora	zonebits,y				// also turn on motor and LED
+		sta	$1c00
+
+	lda #$4b	// Spindle uses only $19 delay, GEOS uses $4b
+	sta $1805
+	lda $1805
+	bne *-3
+
+		jmp	movehead
+
+fetch_here:
+
+		ora	#$0c					// turn on motor and usually LED
+		sta	$1c00
+		}
+		// read the track
+		lda $18
+		jsr ReadTrack
+		// fall through to SpeedDOSNextSector
 
 SpeedDOSNextSector:
 		// $19 contains sector number, find it in cache and decode into ($30 / BUFPNT)
@@ -825,8 +891,7 @@ L043B:	tax							// preserve next track number in X
 		jsr SpeedDOSSendBlock		// send out $FE bytes from current buffer
 		cpx $18						// next track the same?
 		beq SpeedDOSNextSector		// yes: send next sector
-		stx $18						// no: new track
-		bne L0313
+		jmp SpeedDOSMoveHead		// no: new track
 
 SpeedDOSEOF:
 L0333:	lda #$00					// 00 = end of file (0 bytes to follow)
@@ -836,6 +901,7 @@ L0333:	lda #$00					// 00 = end of file (0 bytes to follow)
 		jsr SpeedDOSSendByte		// send status byte, 01=no error
 		inc $1803					// PA input
 		lda $18						// track & sector (header)
+		sta $22						// this is current one now
 		pha
 		lda $19
 		pha
@@ -972,3 +1038,6 @@ LA30D:	.byte $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $08, $00, $01, $ff, $0
 		.byte $ff, $ff, $02, $03, $ff, $0f, $06, $07, $ff, $09, $0a, $0b, $ff, $0d, $0e, $ff
 		.byte $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $08, $00, $01, $ff, $0c, $04, $05
 		.byte $ff, $ff, $02, $03, $ff, $0f, $06, $07, $ff, $09, $0a, $0b, $ff, $0d, $0e, $ff
+
+zonebits:
+		.byte $6c, $4c, $2c, $0c
