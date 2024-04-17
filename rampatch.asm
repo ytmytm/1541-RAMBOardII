@@ -8,7 +8,7 @@
 
 // RAM expansion base address, we need 8K ($2000) area, by default $8000-$9FFF
 // XXX mapped to $6000 for tests in VICE
-.const RAMEXP = $6000 // 8K of expanded RAM
+.const RAMEXP = $8000 // 8K of expanded RAM
 
 // which ROM to patch?
 // uncomment one of the definitions below or pass them to KickAss as a command line option, e.g. -define ROM1571
@@ -23,7 +23,7 @@
 //#define ROMSPEEDDOS35
 
 // SpeedDOS Plus+ 2.7 (40 tracks)
-#define ROMSPEEDDOS40
+//#define ROMSPEEDDOS40
 
 // INFO
 // - read whole track at once and cache
