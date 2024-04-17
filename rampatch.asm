@@ -28,42 +28,18 @@
 // INFO
 // - read whole track at once and cache
 // - decode headers to get the order of sectors
-// - (TODO) 1541: keep GCR data, decode on demand, use procedure and lookup tables from 1571 for that
-//		Coded LFT GCR decoding routine, but it turns out to be almost the same as 1571 ROM (just using 0.5K of lookups) between 98d9 and 9964.
-//		My code uses LAX only, takes 224 cycles; 1571: 189; 1541: 297
-//		After page aligment and LAX/SAX/SBX it's down to 206 - 31% faster
-//		But 1571 lookups are 37% faster and with extra 8K I will have ROM space for that. Can THAT be improved with LAX/SAX/SBX?
-// - needs only one disk revolution (20ms with 300rpm) to read whole track
+// - fast decoding procedures from 1571 ROM with lookup tables
+// - needs only one disk revolution (20ms with 300rpm) to read whole track, second revolution to decode GCR (with on the fly decoding it would also take 2 revolutios to read and decode because we need to move data out of stack)
 // - sector GCR decoding errors are reported normally
 // - header GCR decoding errors are not reported - but if sector is not found we fall back on ROM routine which should report it during next disk revolution
 // - same patch for both variations: stock ROM / JiffyDOS / SpeedDOS / SpeedDOS+
 
 // Excellent resources:
-// http://www.unusedino.de/ec64/technical/formats/g64.html - 10 header GCR bytes? but DOS reads only 8 http://unusedino.de/ec64/technical/aay/c1541/ro41f3b1.htm
+// http://www.unusedino.de/ec64/technical/formats/g64.html - 10 header GCR bytes? but DOS reads only 8 http://unusedino.de/ec64/technical/aay/c1541/ro41f3b1.htm (because header has 6 binary bytes) 
 // http://unusedino.de/ec64/technical/aay/c1541
 //	- note: 1581 disassembly contains references to 1571 ROM
 // https://spiro.trikaliotis.net/cbmrom
 // decode 1541 sector data from GCR on the fly as in https://www.linusakesson.net/programming/gcr-decoding/index.php or Spindle 3.1
-
-/*
-
-1541 ROMRAM
-- ? GCR on the fly for JiffyDOS / track cache for stock / fast GCR decode from 1571 (f497 / f4ed) for both?
-- **ALWAYS** faster because cycles wasted for waitning on head data are used for GCR decoding - saving 19000cycles every time
-- just needs extra ROM for tables and prep code, would work even with stock RAM; with expanded RAM no problem at all (store stack contents somewhere)
-	- prep: save stack somewhere ($0200 buffers or extra RAM)
-	- copy code from ROM to RAM somewhere
-	- wait for sector header
-	- run reading in ram
-	- copy data from stack to target buffer
-	- restore zp/stack
-- separate routine to decode one-shot 5 bytes from sector header (put on stack and retrieve)
-
-
-if the first byte of data is not $55, I give up after 3 tries and report error 04 for that sector and move on. also, if parity fails, give up after 3 tries and report error 05. This is because my project is a disk utility and not a loader :) I cannot "hang" trying forever.
-
-4) save/restore a portion of ZP before/after reading all the sectors I wanted, so I can return to KERNAL when done. Returning to KERNAL is important for my utility project. I am using $86-$E5 for the ZP code and only save/restore $99-$B4 -- the rest is just zero'd out.
-*/
 
 // SpeedDOS - C64 Kernal - that F800-F9AB space is free now
 
