@@ -82,9 +82,7 @@
 .const RE_cached_track = RAMBUF+$ff
 .const RE_max_sector = RAMBUF+$fe
 .const RE_lastmode = RAMBUF+$fd
-.const RE_decoded_headers = RAMBUF // can be the same as RE_cached_headers, separated for debug only
 .const RE_cached_headers = RAMBUF+$0100
-.const RE_cached_checksums = RAMBUF-$0100 // 1571 only
 
 /////////////////////////////////////
 
