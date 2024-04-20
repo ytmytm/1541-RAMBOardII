@@ -5,9 +5,9 @@
   (paper "A4")
 
   (title_block
-    (title "RAMBoard ][: First Bank")
-    (date "2024-03-21")
-    (rev "1")
+    (title "RAMBoard ][")
+    (date "2024-04-20")
+    (rev "2")
     (company "YTM Enterprises")
     (comment 1 "Maciej Witkowiak, <ytm@elysium.pl>")
     (comment 2 "1541-II RAM and ROM expansion")
@@ -981,8 +981,8 @@
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 24ceb922-8fbf-4dde-b7ae-d468e0d01ec5)
   )
-  (text "J1:\n- A14 from CPU (U3) pin 24\n- R/~{W} from any: VIA (U6/U8) pin 22 or CPU (U3) pin 34\n"
-    (at 22.86 143.51 0)
+  (text "J1:\n- A14 from CPU (U3) pin 24\n- R/~{W} from onboard RAM (U5) pin 21\n  or gate array (U10) (pin 29 or 31 - check connection)\n  or a via near R14"
+    (at 20.32 146.05 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 29ad869a-4d1c-4e9d-bda3-28b0488e80e6)
   )
