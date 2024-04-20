@@ -11,5 +11,5 @@ tools/*
 # proprietary
 JiffyDOS_1541-II-patched.bin
 rom/JiffyDOS_1541-II.bin
-rom/JiffyDOS_Kernal.bin
+rom/JiffyDOS_Kernal-C64.bin
 
