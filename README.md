@@ -272,7 +272,7 @@ We need to know in which order the sectors have been decoded, so now we need to 
 ## GCR decoding
 
 I have copied solution used by CBM in 1571 ROM. There are lookup tables used to quickly decode GCR into binary nibbles using only bit masking and lookups, without shifting bits. 1571 has 2MHz CPU clock and can use those tables while the data is coming from the disk, there is no time for that on 1541.
-(There is a way to do it on the fly even on 1541)[https://www.linusakesson.net/programming/gcr-decoding/index.php] but there is no time to move the data out of stack before the next sector. Either way it takes two disk revolutions to read+decode on the fly+move data or read+cache & decode later. (Although DolphinDOS 2 may prove me wrong).
+[There is a way to do it on the fly even on 1541](https://www.linusakesson.net/programming/gcr-decoding/index.php) but there is no time to move the data out of stack before the next sector. Either way it takes two disk revolutions to read+decode on the fly+move data or read+cache & decode later. (Although DolphinDOS 2 may prove me wrong).
 
 ## SpeedDOS loader
 
