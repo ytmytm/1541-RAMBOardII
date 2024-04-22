@@ -91,7 +91,7 @@ My recommendation is to make it process in steps:
 2. Push the daughterboard in its place, mind the orientation; chips on the dautherboard are oriented in the same way as those on the mainboard
 3. Connect remaining two signals with wires to the mainboard
    a) A14 has to be connected to CPU (U3) pin 24
-   b) R/W has to be connected to onboard RAM (U5) pin 21 or gate array (U10) pin 29 or 31 (depending on the board revision) or a very convenient via near R14 resistor. In any case check the connection to U5 pin 21!
+   b) R/W has to be connected to onboard RAM (U5) pin 21 or gate array (U10) pin 29 or 31 (depending on the board revision) or a very convenient via near R42 resistor. In any case check the connection to U5 pin 21!
 
 Here is an example:
 
