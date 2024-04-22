@@ -173,9 +173,9 @@ RAM can be also confirmed using [ramboard.d64](doc/ramboard.d64) test disk.
 
 There is no configuration needed. These are stock ROM images, found on the Internet. Take them from [rom/] folder:
 
-- (C64 Kernal)[rom/DolphinDOS2-Kernal-C64.rom]
-- (C128 Kernal)[rom/DolphinDOS2-Kernal-C128.rom]
-- (1541-II)[rom/DolphinDOS2-1541-II.bin]
+- [C64 Kernal](rom/DolphinDOS2-Kernal-C64.rom)
+- [C128 Kernal](rom/DolphinDOS2-Kernal-C128.rom)
+- [1541-II](rom/DolphinDOS2-1541-II.bin)
 
 I have put them also in the releases section.
 
