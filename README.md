@@ -131,7 +131,7 @@ Since the board worked well and since it can be reconfigured back to 16K ROM at 
 
 Desoldering is easy with proper tool, but even with a soldering iron it's possible and not difficult if you first cut the socket in such way that you are working on one pin at a time. The holes can be cleared using a wooden toothpick.
 
-Here is an example. U4 ROM socket has been removed, You can see R/W line (blue) and A14 (purple) already connected. Top 
+Here is an example. U4 ROM socket has been removed, You can see R/W line (blue) and A14 (purple) already connected.
 
 <img src="media/01.before_soldering.jpg" alt="U4 ROM socket has been removed. You can see R/W line (blue) and A14 (purple) already connected">
 
