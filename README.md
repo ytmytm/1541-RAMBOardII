@@ -12,6 +12,8 @@ It supports the following software:
 
 Note that for DolphinDOS 2 and SpeedDOS you need a [parallel connection](https://sta.c64.org/cbmpar41c.html) to C64/128 user port. Since the hardware side is the same, if you have no other reason to stick with SpeedDOS you should really go with DolphinDOS 2.
 
+<img src="kicad/1541-RAMBoard2-FirstBank/plots/1541-RAMBoard2-FirstBank-top.png" width=640 alt="1541-Ramboard][ Top view"><img src="kicad/1541-RAMBoard2-FirstBank/plots/1541-RAMBoard2-FirstBank-bot.png" width=640 alt="1541-Ramboard][ Bottom view">
+
 # Background
 
 After completing [1571 RAM expansion](https://github.com/ytmytm/c128-bytewide-color-ram-1571cr-expansion) and providing [firmware patches for 1571](https://github.com/ytmytm/1571-TrackCacheROM) I turned my eyes to my two 1541-II drives, both already equipped with parallel cable, used in the past for [quick disk to disk copying](https://github.com/ytmytm/c64-ddbb).
@@ -42,6 +44,14 @@ It follows quite closely [RAMBoard](http://d81.de/CLD-RAMBOard/RAMBOard-2C.shtml
   - switch between two 32K banks (24K visible for CPU), for patched CBM DOS/JiffyDOS/SpeedDOS images or DolphinDOS 2
   - switch between four 16K banks for original 16K images of various DOS ROMs for 1541
 - the board plugs into ROM socket and needs only two more signals from the mainboard
+
+## Project
+
+KiCad 6.0 project files are in [KiCad folder](kicad/1541-RAMBoard2-FirstBank/)
+
+Schematic is [available as a PDF too](kicad/1541-RAMBoard2-FirstBank/plots/1541-RAMBoard2-FirstBank.pdf)
+
+Gerber files for manufacturing are [available from plots folder](kicad/1541-RAMBoard2-FirstBank/plots/)
 
 ## Parts
 
@@ -83,6 +93,12 @@ My recommendation is to make it process in steps:
    a) A14 has to be connected to CPU (U3) pin 24
    b) R/W has to be connected to onboard RAM (U5) pin 21 or gate array (U10) pin 29 or 31 (depending on the board revision) or a very convenient via near R14 resistor. In any case check the connection to U5 pin 21!
 
+Here is an example:
+
+<img src="media/02.installed.jpg" alt="Daughterboard in place. It is configured for 2x24K(32K) but ROM switch has not been installed yet.">
+
+this board is configured for 8K 62256 RAM (both RAM_A13/A14 jumpers closed to GND) with two banks of 24K (32K) out of 64K EEPROM chip - R15 is installed, R14 is missing and ROM_A14 jumper is closed. There is no switch yet that would connect round pin of ROM_A15 to GND to select bottom half of EEPROM.
+
 ### Initial testing
 
 You can put back original ROM into daughterboard. You don't need to install ROM selection switch for initial tests. By default the upper part of ROM will be selected (`$8000-$FFFF` for 64K ROM configured for 2x24K(32K) banks).
@@ -115,6 +131,10 @@ Since the board worked well and since it can be reconfigured back to 16K ROM at 
 
 Desoldering is easy with proper tool, but even with a soldering iron it's possible and not difficult if you first cut the socket in such way that you are working on one pin at a time. The holes can be cleared using a wooden toothpick.
 
+Here is an example. U4 ROM socket has been removed, You can see R/W line (blue) and A14 (purple) already connected. Top 
+
+<img src="media/01.before_soldering.jpg" alt="U4 ROM socket has been removed. You can see R/W line (blue) and A14 (purple) already connected">
+
 Before soldering in the daughterboard cover the nearby chips (U2 and U5) with a tape to prevent shorts. Don't forget about trimming all the pins from the daughterboard sockets and resistors as close as possible to the PCB also to prevent shortcuts.
 
 In my case this way of installation was successful - I can still remove RAM and ROM from the sockets and there is no risk for the drive mechanism.
@@ -126,9 +146,7 @@ If you are going to use DolphinDOS 2 (highly recommended) it's also a good time 
 1. On the solder side of the mainboard cut the trace between pins 1 and 2 of VIA#1 (U6)
 2. Connect 10 wires of the flat cable in following way:
 
-|     |     |     |     |     |
-| --- | --- | --- | --- | --- |
-| **VIA#1** | **pin** | **USER** | **signal** | **flat10** |
+| **VIA#1 U6 pin** | **pin name** | **USER PORT** | **signal** | **Flat 10** |
 | --- | --- | --- | --- | --- |
 | 39  | CA2 | B   | /FLAG2 | 1 (red) |
 | 2   | PA0 | C   | PB0 | 2   |
@@ -207,6 +225,8 @@ There is no functional change. GCR decoding routines are faster but data transfe
 
 Reading speed will be constantly over 10.5x instead of 9.8x no matter the sector interleave. The faster GCR decoding routines have some impact. Thanks to track cache the reading speed will be always the fastest possible, no matter if the files were saved with suboptimal orignal 1541 interleave (10) or the one preferred by JiffyDOS (6).
 
+<img src="media/03.jiffydos-benchmark.jpg" alt="JiffyDOS benchmark">
+
 ## SpeedDOS
 
 Thanks to optimized GCR decoding and track cache, with parallel cable this is about three times faster than original SpeedDOS and almost as fast as Action Replay loader (about 16x). The patch on C64 side doesn't send any code to the drive anymore upon LOAD, it just executes the loader already within the drive ROM.
@@ -214,6 +234,8 @@ Thanks to optimized GCR decoding and track cache, with parallel cable this is ab
 ## DolphinDOS 2
 
 Definietly the best solution. There is no competition to its 27x loading speed and improvements are in all operations (save, scratch, validate). I was able to fully confirm the benchmark results shown in [Comparison of fastloaders](https://www.c64-wiki.com/wiki/Comparison_of_fast_loaders).
+
+<img src="media/04.dolphindos-benchmark.jpg" alt="DolphinDOS benchmark">
 
 ## Is there any benefit?
 
