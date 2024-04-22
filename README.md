@@ -83,7 +83,7 @@ My recommendation is to make it process in steps:
 3. Decide about the board setup - 2x24K(32K) or 4x16K ROMs
    a) for 2x24(32K) - close ROM_A14 jumper, install R15 resistor and a switch for ROM selection between ROM_A15 jumper (pin which connects to the resistor) and the ground
    b) for 4x16K - install R14 and R15 resistors and two switches for ROM selection between ROM_A14/ROM_A15 jumpers (both pins which connect to the resistors) and the ground
-4. RAM_A13/A14 can be closed to keep them low for 32K SRAM (62256). *IMPORTANT NOTE* if you have 8K SRAM (6264) you *have* to keep RAM_A13 open and jumper pin that goes to RAM pin 26 to VCC. With 6264 that line is not A13 address line, but a `CE2` control signal that has to be kept high.
+4. RAM_A13/A14 can be closed to keep them low for 32K SRAM (62256). **IMPORTANT NOTE** if you have 8K SRAM (6264) you **have to** keep RAM_A13 open and jumper pin that goes to RAM pin 26 to VCC. With 6264 that line is not A13 address line, but a `CE2` control signal that has to be kept high.
 
 ### Daughterboard initial installation
 
