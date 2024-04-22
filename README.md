@@ -239,7 +239,7 @@ Definietly the best solution. There is no competition to its 27x loading speed a
 
 ## Is there any benefit?
 
-Yes, if you use JiffyDOS and DolphinDOS 2. If install parallel connection and there is no other reason I wouldn't bother with SpeedDOS, when DolphinDOS is on the table.
+Yes, if you use JiffyDOS and DolphinDOS 2. If parallel connection is available and there is no other important reason I wouldn't bother with SpeedDOS, when DolphinDOS is on the table.
 
 # Theory of operation
 
