@@ -101,7 +101,7 @@ this board is configured for 8K 62256 RAM (both RAM_A13/A14 jumpers closed to GN
 
 ### Initial testing
 
-You can put back original ROM into daughterboard. You don't need to install ROM selection switch for initial tests. By default the upper part of ROM will be selected (`$8000-$FFFF` for 64K ROM configured for 2x24K(32K) banks).
+You can put back original ROM into daughterboard. You don't need to install ROM selection switch for initial tests. By default the upper half of ROM will be selected for 64K ROM configured for 2x24K(32K) banks).
 
 Your drive should start normally.
 
