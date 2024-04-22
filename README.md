@@ -171,7 +171,7 @@ RAM can be also confirmed using [ramboard.d64](doc/ramboard.d64) test disk.
 
 ## DolphinDOS 2
 
-There is no configuration needed. These are stock ROM images, found on the Internet. Take them from [rom/] folder:
+There is no configuration needed. These are stock ROM images, found on the Internet. Take them from (rom/)[rom/] folder:
 
 - [C64 Kernal](rom/DolphinDOS2-Kernal-C64.rom)
 - [C128 Kernal](rom/DolphinDOS2-Kernal-C128.rom)
@@ -219,7 +219,7 @@ One thing that **will change** is the speed of **V**alidate command. You will he
 
 ## Original CBM DOS
 
-There is no functional change. GCR decoding routines are faster but data transfer is so small it doesn't matter. Older fastloaders that relay on ROM routines for loading sectors will be faster.
+There is no functional change. GCR decoding routines are faster but data transfer is so slow that it doesn't matter. Older fastloaders that rely on ROM routines for loading sectors will be faster.
 
 ## JiffyDOS
 
@@ -239,7 +239,7 @@ Definietly the best solution. There is no competition to its 27x loading speed a
 
 ## Is there any benefit?
 
-Yes, if you use JiffyDOS and DolphinDOS 2. If you have no other reason I wouldn't bother with SpeedDOS, when DolphinDOS is on the table.
+Yes, if you use JiffyDOS and DolphinDOS 2. If install parallel connection and there is no other reason I wouldn't bother with SpeedDOS, when DolphinDOS is on the table.
 
 # Theory of operation
 
