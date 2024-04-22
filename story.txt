@@ -1,0 +1,149 @@
+These are my notes, a project diary. I highly recommend this practice!
+
+(continuing from 1571-TrackCacheROM)
+
+[2024-03-24]
+Now a test version for 1541 for my upcoming RAMBOard][ project, which will have both additional RAM ($8000-$9FFF) and ROM ($A000-$BFFF) because in 1541-II 16K there is no
+space left for track caching code.
+(Am I building DolphinDOS? https://www.softwolves.com/arkiv/cbm-hackers/18/18460.html)
+
+First step was to just port the changes from 1571 and stuff them into area unlikely to be used (REL files handlers) in simple load/save operation.
+This works, the only problem was with ROM check which is not a direct copy of 1571 code.
+The next step will be to figure out if there is enough space to copy fast GCR decoding routine either from 1571 or from Spindle https://www.linusakesson.net/programming/gcr-decoding/index.php
+Probably not on the fly, but with lookups it should be faster anyway. Regarding Spindle - it can only read 1 sector and we would need to copy the data out of stack.
+This would take at least two disk revolutions. Krill's loader does something to the nibbles, so maybe some preprocessing can be done on the fly, like processing 5 bytes at a time. Data will come every 26/28/30/32 cycles, depending on the bitrate. If we keep decoded GCR then a lot of space in RAM is available for buffering.
+Krill's loader for 1571 is a more efficient ROM routine but it does the same thing using the same tables.
+Krill's loader for 1541 also uses stack and can't be used.
+
+This discussion is interesting and has some code: https://www.softwolves.com/arkiv/cbm-hackers/18/18472.html
+He wrote about 2K lookups, but they are sparse, as LFT noticed for Spindle
+https://www.softwolves.com/arkiv/cbm-hackers/18/18475.html
+and 2 buffer split mentioned by LFT (maybe earlier Krill's verison):
+https://www.softwolves.com/arkiv/cbm-hackers/10/10900.html
+
+ProDOS info: http://d81.de/ProfessionalDOS/Hardware/roms.shtml
+
+This will probably end with using 1571 lookups
+
+[2024-03-26]
+Coded LFT GCR decoding routine into 1571 ROM, but it turns out to be almost the same as 1571 ROM (just using 0.5K of lookups) between 98d9 and 9964.
+My code uses LAX only, takes 224 cycles; 1571: 189; 1541: 297
+After page aligment and LAX/SAX/SBX it's down to 206 - 31% faster
+But 1571 lookups are 37% faster and with extra 8K I will have ROM space for that. Can THAT be improved with LAX/SAX/SBX?
+
+[2024-04-08]
+Going back to 1541RAMBoard][ - already ordered PCBs. In the meantime I can start working on firmware. Points:
+1) GCR decoding on the fly is a benefit only if it's really done on the fly; the decoding routine itself, done on cached data, is slower than 1571 procedure
+2) for stock ROM the transfer is the bottleneck
+3) for JiffyDOS it's not clear if transfer or reading speed is the bottleneck
+4) there is no time to move data out of stack in GCR on the fly decoding - it's either track cache in one revolution or GCR on the fly
+5) faster GCR decoding is a benefit for track cache
+Therefore:
+a) stock 1541 needs track cache + faster offline GCR decoding from 1571 ROM
+b) JiffyDOS *might* benefit more from GCR decoding on the fly due to faster data transfer
+c) many fastloaders use ROM routines for reading/decoding data anyway - it's always a benefit
+
+Let's start with faster GCR decoding taken from 1571
+
+[2024-04-09]
+Have a working 24K (32K-8K) ROM for 1541RAMBoard with patched in 1571 GCR decoding and improved track cache processing (faster decode).
+Started playing with SpeedDOS - it should already use improved GCR decoding but loader keeps reinitializing track cache but loads wrong data.
+Can hack into SpeedDOS Kernal part: move drive code to drive ROM (so that only M-E is executed at about f733) and make it use of track cache.
+Just use the same protocol: #bytes that follow + data, or #00+status code (1==ok); only #bytes that follow can fail with timeout
+Kernal side of the loader always skips over load address (even if it's ,8,1 - but ,8,2 goes to standard load)
+
+[2024-04-10]
+Now both SpeedDOS variants are supported much faster, also because there is no drive code upload.
+There is no secondary address support yet. Also I need to test JiffyDOS.
+
+[2024-04-11]
+JiffyDOS done too - it computes sector checksum while decoding sector GCR and stores it in $4B.
+Benchmark results below. SpeedDOS performance with/without cache is about the same as JiffyDOS. Kudos to JD, a bit disappointed in SpeedDOS and lack of parallel cable performance. Track cache is a great benefit here because interleave doesn't matter anymore.
+What next - hack in GCR decoding on the fly from GEOS driver and hope that with optimal interleave (3 or 4) that would beat JD/SD anyway?
+
+[2024-04-13]
+Ported LFT's GCR on the fly decoding in a naive way (preserve whole $01 page and all used zp locations).
+
+[2024-04-14]
+(branch: gcr-decode-otf)
+Tried GCR decoding on the fly with JiffyDOS. With smarter stack saving got it to perform better at interleave 5. But that won't do anything unless we can go down to 3-4. It was just comparable to but didn't really beat TrackCache. Caching whole track this way doesn't seem viable - there is no time for copying data out of stack - we would need to have 3-4 disk revolutions and we need to track which sectors were read. It's much simpler just to read whole GCR track and deal with it as needed.
+One last thing worth trying is to use that code in SpeedDOS within file loader procedure so that stack and zeropage need to be saved/restored only once. That and own code to move the head. If that doesn't give parallel option a boost, I don't see how to save the idea of a parallel connection (for GEOS it only makes sense because of memory constraints on the C64 side).
+
+[2024-04-15]
+(branch: speed-dos-gcr-decode-otf)
+Modified SpeedDOS to do whole file loading within IRQ so no changes in zp/stack are needed until end of the load.
+Merged head movement routines from Spindle 3.1 and GEOS.
+Now it's on par with Action Replay (15x) but with screen enabled.
+Rough timings:
+Head movement:	2*20000
+Send sector:	  10000
+Read GCR OTF:	   9600 (64*5*30)
+Disk revolution: 200000
+Decode GCR:	  12800 (64*200)
+
+153 blocks (8 tracks) with GCR  : min timing: 3mln cycles (32x)
+                      with cache:             5mln cycles (19x)
+
+Don't see how this can be improved. Spindle knows which sectors are needed and can read (and send) them out of order. But they know beforehand the correct order so C64 can put it right.
+Here I can cache them so the next sector is missed so we can read&decode every other sector - maybe within 2 revolutions: 400000 cycles. Plain cache will take 1 revolution: 200000 one more 268800 for decode. Both take 210000 for transfer.
+So maybe the problem is with DOS overhead within trackcache version?
+Timing there: ReadCache is exactly 214000 cycles (rotation+next header), while time between tracks is 867000 cycles - of which 210000 are transfer, 268800 decode, and 40000 is head movement - what's left in remaining ~350000 cycles?
+If that is removed we can go down by 2-3mln cycles in the benchmark down to 6000000cycles ~ 15-16x (action replay)
+
+[2024-04-16 (hardware)]
+Boards were delivered. Quickly soldered one - drive mech has to be raised about 1mm to clear EPROM/RAM in sockets. I could solder RAM directly (but I don't want to), but not EPROM. It shouldn't affect the operation though.
+ROM (JiffyDOS repeated 4 times) works, RAM works on every even page $8000-$A000 but that's probably I didn't tie RAM_A13/14 to the ground. I will connect them to VIA port - I want the banking option (caching 4 tracks, or directory+3 tracks).
+When assembling ROM - remember to change RAM address to $8000!
+
+[2024-04-16 (ROM)]
+(branch speed-dos-no-return-from-irq (already merged))
+Own code for moving the head. Faster than just cache and relying on calling job $80 for every track.
+About as fast as gcr on-the-fly, faster than JiffyDOS - but agnostic to interleave, so will work always on every disk.
+Some improvement can be still done: after reading the track into cache start moving the head to the new position already, so it's there for the next track. Also initially this has to be called from job $E0 or the code is stuck on 'bvc *' - some initialization is missing.
+But one is a small gain for each track only once and the other is a small gain once. Turning off the screen and cycling the transfer might reduce it from 10000 cycles to about 7500 per block. In total maybe 500000 off.
+We are already almost at the limit of what is possible with 1MHz CPU: about 6000000 cycles for 8 tracks of data. 
+Version from the branch speed-dos-gcr-decode-otf is the fastest possible one, but requires files to be saved with interleave 3, so it's not universally better.
+
+NOTE: *maybe* the gcr-otf could push data into parallel port without handshake wait instead of stack, but STA $1801 is one cycle longer than PHA; the C64 end needs to be able to handle data (screen off), deal with number of bytes to send and return next t&s.
+
+[2024-04-17]
+Merged speed-dos-no-return-from-irq. Started testing on the real device, but I get lots of 23,READ ERROR ($05 in $00).
+Mechanically it's a problem to fit the eprom. It has to be in a socket, so mechanism must be raised by about 1mm, but then there is an issue with front plate.
+For now tied RAM A13/14 to GND because they can't remain floating. Still unsure if I should tie them to VIA port (where Burst is) or somewhere else. If tied to VIA burst port then two more pullups are required.
+Need to check on a better floppy and maybe with plain 1541][ ROM (not JiffyDOS) - a switch to flip top/bottom half of the ROM already would be nice. Also check with Action Replay and check if 1571 can read floppy formatted & files saved on that 1541.
+Also run ramboard test program.
+It would make sense to bank in/out another 8K (RAM A13) using LED bit just to keep track 18 (directory) always in cache.
+
+[2024-04-18]
+Very weird results. Action Replay hangs on fastload with JD ROM, loads fine with 1541 ROM. Both JD and 1541 may return error 23 ($05) while loading files (e.g. track 17 or 19) and sometimes error 22 ($04) while loading directory - in that case the file for loading can't be found.
+So files are saved correctly, there is no problem with media - just with the reading part (or checking checksums) or decoding headers. Maybe it's all the fault of improved GCR decoding routines? Maybe there is a RAM problem?
+Error 23 may come only from block checksum check - compare result of $F5E9 (EOR over ($30)) with $3A (last GCR byte)
+Error 22 may come only from marker check at $F4F0 when $38 (first GCR byte) is compared with $47 (constant 7)
+AR does only seek ($B0) and that calls header to be loaded and decoded.
+VICE doesn't help at all.
+Devise a RAM checking procedure - DID I RUN THE RAMTEST from u2+?
+
+ALSO I THINK I HAVE DESIGNED A DOLPHINDOS2 CLONE, so all that time spent on SpeedDOS was a waste?
+
+[2024-04-19]
+Simple memory test (different value every page) didn't show anything in $9000-$9fff, nothing written there affected $8000-$8fff either.
+Tried with DolphinDOS, get 66,ILLEGAL TRACK when RAM is on @XR+
+This is super strange - I think some part of RAM gets overwritten, but don't know how and why. For instance in VICE $8038-$80FF is not touched while on real device there are some bytes there.
+On VICE data ends at $991E, nothing is written past that (9ba9 on tracks < 18)
+Data on real device is mostly stable.
+Try to load the same disk image on both real hw and VICE and compare
+
+[2024-04-20]
+Success! The problem was that R/W was tied directly from CPU. It makes sense for MOS chips that also take phi2 as input, but anything else needs to combine both signals. Fortunately we already have it - it's generated by gate array (U10) and goes out to RAM. If connecting to U10 make sure to check connection with onboard RAM (U5) pin 21. On U10 it depends on PCB version - it can be pin 29 (my unit+Levente) or 31 (schematic from zimmers.net). There is a convenient via near R14 
+resistor too.
+
+Next steps:
+- ROM switch
+- flat cable connector to test with C128D (Link232)
+- C128D ROM mod (Jiffy+Dolphin for C64 mode, Jiffy+Stock for C128 mode; both patched for 32K color RAM)
+
+[2024-04-21]
+No changes today - but the board is compatible with 6264 pinout, just pin 26 (A13 / RAM_A13) is CE2 and must be HIGH,
+R10K to VCC should suffice. So much for 'wasted' RAM - although I don't know where to get 6264 from. And I already have a stack of 62256s.
+Wrote README. Need proofreading and media updates (photos and PCB images), but I uploaded everything to GitHub. Finally this story file will go there too.
+
