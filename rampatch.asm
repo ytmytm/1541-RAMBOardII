@@ -217,11 +217,14 @@
 .segment MainPatch [min=$A000,max=$BFFF]
 
 		.pc = $A000
-
-#if ROMSPEEDDOS35 || ROMSPEEDDOS40
-SpeedDOSRun:
+		.text "RAM"				// signature
+		// API
+SpeedDOSRun:					// $A003
 		jmp SpeedDOSLoader		// SpeedDOS loader at a fixed address for C64 Kernal side
-#endif
+		jmp ReadTrack
+		jmp ReadSector
+		jmp ResetOnlyCache
+		jmp DoReadCache
 
 /////////////////////////////////////
 
@@ -732,7 +735,8 @@ CopyRestVector:
 
 /////////////////////////////////////
 
-#if ROMSPEEDDOS35 || ROMSPEEDDOS40
+// Embedded SpeedDOS loader in ROM (usable by compatible loader on other platforms, e.g. C16/116/+4 with simple M-E)
+
 		// this will be called via M-E from C64 Kernal
 		// file was opened t&s is in $18/19
 		// all RAM can be used (SpeedDOS puts its own code in $0300-$0500 while $0600-$0700 and $0140-FF are for data buffers)
@@ -874,6 +878,11 @@ L0333:	lda #$00					// 00 = end of file (0 bytes to follow)
 		pha
 		jsr SpeedDOSSendByte		// send status byte, 01=no error
 		inc $1803					// PA input
+		lda #$01
+		sta $180C					// don't send more pulses, keep CA1 (ATN IN) trigger on positive edge
+		lda #$82
+		sta $180D					// interrupt possible through ATN IN
+		sta $180E
 		lda $18						// track & sector (header)
 		sta $22						// this is current one now
 		pha
@@ -918,8 +927,6 @@ L0494:	bit $180D
 		cpy $0C						// number of bytes to send
 		bne L0489
 		rts
-
-#endif
 
 /////////////////////////////////////
 

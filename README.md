@@ -1,4 +1,3 @@
-
 # 1541-RAMBOard][
 
 This is a recreation of [CLD RAMBoard](http://d81.de/CLD-RAMBOard/RAMBOard-2C.shtml) aimed at 1541-II drive with important change: 24K(32K) ROM support. It can be also configured to switch between two banks of 24K(32K) ROMs out of 64K ROM chip or one of four 16K banks.
@@ -211,9 +210,21 @@ Combine two 32K images to have more than one option within a 64K EEPROM.
 
 In my case I have chosen to use JiffyDOS and DolphinDOS to have the best of both worlds.
 
+### ROM API and firmware signature
+
+Since the last update the patched 1541-II ROM now advertises a small, fixed-location API together with an identification signature:
+
+* `$A000-$A002` – three-byte ASCII signature that lets host software confirm that the RAMBOard ][ firmware is active.
+* `$A003`       – start of the public jump table. The first entry provides the SpeedDOS loader routine used by the patched C64 SpeedDOS Kernal
+
+A patched C64 SpeedDOS Kernal will not waste time on uploading the drive code; it now jumps to the public API entry point at `$A003` instead.
+
 # Results
 
-There is no indication that the new code is in place. I didn't change the drive behaviour or RESET message.
+There is no indication that the new code is in place. I didn't change the drive behaviour or RESET message. You can detect new ROM by checking the signature at `$A000`.
+
+The SpeedDOS protocol loader is available in the 1541 ROM jump table at `$A003` and can be used by other platforms, like C16/116/+4 with parallel interface.
+
 
 One thing that **will change** is the speed of **V**alidate command. You will hear that with the new ROM it's much faster, large files will be scanned with head moving across the tracks almost as fast as the format operation.
 
@@ -223,7 +234,7 @@ There is no functional change. GCR decoding routines are faster but data transfe
 
 ## JiffyDOS
 
-Reading speed will be constantly over 10.5x instead of 9.8x no matter the sector interleave. The faster GCR decoding routines have some impact. Thanks to track cache the reading speed will be always the fastest possible, no matter if the files were saved with suboptimal orignal 1541 interleave (10) or the one preferred by JiffyDOS (6).
+Reading speed will be constantly over 10.5x instead of 9.8x no matter the sector interleave. The faster GCR decoding routines have some impact. Thanks to track cache the reading speed will be always the fastest possible, no matter if the files were saved with suboptimal original 1541 interleave (10) or the one preferred by JiffyDOS (6).
 
 <img src="media/03.jiffydos-benchmark.jpg" alt="JiffyDOS benchmark">
 
@@ -240,6 +251,8 @@ Definietly the best solution. There is no competition to its 27x loading speed a
 ## Is there any benefit?
 
 Yes, if you use JiffyDOS and DolphinDOS 2. If parallel connection is available and there is no other important reason I wouldn't bother with SpeedDOS, when DolphinDOS is on the table.
+
+This doesn't discount SpeedDOS loader that can be used by C16/116/+4 equipped with parallel interface.
 
 # Theory of operation
 
@@ -280,7 +293,7 @@ Original SpeedDOS LOAD handler used job codes to read data sector by sector. I c
 
 If you want to better understand how SpeedDOS LOAD works see [my commented disassembly](doc/speeddos40-loader.txt) of the code that is uploaded from C64 to the drive when a file is loaded.
 
-A patched C64 Kernel will not waste time on uploading the code either, it will jump to the new ROM part in drive at `$A000` instead.
+A patched C64 Kernel will not waste time on uploading the code either, it will jump to the new ROM part in drive at `$A003` instead.
 
 ## Other patched routines
 

@@ -2,6 +2,10 @@ These are my notes, a project diary. I highly recommend this practice!
 
 (continuing from 1571-TrackCacheROM)
 
+[2025-07-04]
+Added signature 'RAM' and a jump table at $A000. This should make a very fast parallel loader
+possible for a C16/116/+4 with BurstCart(VIA)+1541.
+
 [2024-03-24]
 Now a test version for 1541 for my upcoming RAMBOard][ project, which will have both additional RAM ($8000-$9FFF) and ROM ($A000-$BFFF) because in 1541-II 16K there is no
 space left for track caching code.
