@@ -21,7 +21,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # Download KickAss
       - name: Download KickAss
@@ -41,49 +41,49 @@ jobs:
 
       # Upload artifacts
       - name: Archive patched 1541 ROM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dos1541ii-251968-03-patched.bin
           path: dos1541ii-251968-03-patched.bin
 
       - name: Archive patched SpeedDOS 2.7 Plus 1541 ROM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: 1541-II-SpeedDOS-35-patched.bin
           path: 1541-II-SpeedDOS-35-patched.bin
 
       - name: Archive patched SpeedDOS 2.7 Plus C64 Kernal ROM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: C64-SpeedDOS-Plus-35-patched.bin
           path: C64-SpeedDOS-Plus-patched.bin
 
       - name: Archive patched SpeedDOS 2.7 Plus+ 1541 ROM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: 1541-II-SpeedDOS-40-patched.bin
           path: 1541-II-SpeedDOS-40-patched.bin
 
       - name: Archive patched SpeedDOS 2.7 Plus+ C64 Kernal ROM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: C64-SpeedDOS-Plus-40-patched.bin
           path: C64-SpeedDOS-Plus+-patched.bin
 
       - name: Archive unmodified DolphinDOS 2 C64 Kernal ROM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: DolphinDOS2-Kernal-C64.rom
           path: rom/DolphinDOS2-Kernal-C64.rom
 
       - name: Archive unmodified DolphinDOS 2 C128 Kernal ROM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: DolphinDOS2-Kernal-C128.rom
           path: rom/DolphinDOS2-Kernal-C128.rom
 
       - name: Archive unmodified DolphinDOS 2 1541 ROM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: DolphinDOS2-1541-II.bin
           path: rom/DolphinDOS2-1541-II.bin
